@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>VidArt Mapper — Proiezione su Palazzi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --border: rgba(255,255,255,0.1);
+      --accent: #e8ff3c;
+      --accent2: #ff4f3c;
+      --text: #f0f0f0;
+      --muted: rgba(255,255,255,0.4);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      width: 100%;
+    }
+
+    /* ── Header ── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      z-index: 10;
+    }
+    #header h1 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    #header span {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Canvas area ── */
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    #main {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    #overlay-svg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      touch-action: none;
+    }
+
+    /* ── Hint badge ── */
+    #hint-badge {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s;
+    }
+
+    /* ── Bottom toolbar ── */
+    #toolbar {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #row1, #row2 {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      flex: 1;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      min-height: 44px;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn.danger { border-color: var(--accent2); }
+    .btn.danger:active { background: var(--accent2); color: #fff; }
+    .btn-icon { font-size: 16px; }
+
+    #file-btn {
+      background: var(--surface2);
+      border: 1px dashed rgba(232,255,60,0.4);
+      color: var(--accent);
+    }
+    #cam-btn {
+      border-color: rgba(255,79,60,0.4);
+      color: var(--accent2);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+    .slider-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      min-width: 58px;
+    }
+    input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    .slider-val {
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 30px;
+      text-align: right;
+    }
+
+    #count-badge {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+    }
+
+    /* hidden file input */
+    #fileInput { display: none; }
+    #camInput { display: none; }
+
+    /* point colors */
+    .ph-0 { --pc: #ff4444; }
+    .ph-1 { --pc: #44aaff; }
+    .ph-2 { --pc: #44ff88; }
+    .ph-3 { --pc: #ffcc00; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div id="header">
+    <h1>VidArt Mapper</h1>
+    <span>Proiezione prospettica AR</span>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="main"></canvas>
+    <svg id="overlay-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <polygon id="quad" fill="rgba(232,255,60,0.07)" stroke="rgba(232,255,60,0.5)"
+               stroke-width="1.5" stroke-dasharray="6,4" points=""/>
+      <g id="handles"></g>
+    </svg>
+    <div id="hint-badge">Carica un'immagine o video per iniziare</div>
+  </div>
+
+  <div id="toolbar">
+    <div id="row1">
+      <button class="btn" id="file-btn" onclick="document.getElementById('fileInput').click()">
+        <span class="btn-icon">📁</span> Galleria
+      </button>
+      <button class="btn" id="cam-btn" onclick="startCamera()">
+        <span class="btn-icon">📷</span> Camera
+      </button>
+      <button class="btn" id="btnSet" onclick="setMode('set')">
+        <span class="btn-icon">✦</span> Punti
+      </button>
+      <button class="btn" id="btnDrag" onclick="setMode('drag')">
+        <span class="btn-icon">⤢</span> Muovi
+      </button>
+      <button class="btn danger" id="btnReset" onclick="resetPoints()">
+        <span class="btn-icon">↺</span>
+      </button>
+    </div>
+
+    <div id="row2">
+      <div class="slider-row">
+        <span class="slider-label">Opacità</span>
+        <input type="range" id="opSlider" min="10" max="100" value="85"
+               oninput="opacity=this.value/100; opVal.textContent=this.value+'%'; draw()">
+        <span class="slider-val" id="opVal">85%</span>
+      </div>
+      <span id="count-badge">0 / 4 pt</span>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="image/*,video/*" onchange="loadFile(this)">
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('main');
+const ctx = canvas.getContext('2d');
+const svgEl = document.getElementById('overlay-svg');
+const quad = document.getElementById('quad');
+const handlesG = document.getElementById('handles');
+const hint = document.getElementById('hint-badge');
+const countBadge = document.getElementById('count-badge');
+const btnSet = document.getElementById('btnSet');
+const btnDrag = document.getElementById('btnDrag');
+
+let W = 0, H = 0;
+let mode = 'set';       // 'set' | 'drag'
+let points = [];        // max 4, canvas-space {x,y}
+let media = null;       // HTMLImageElement | HTMLVideoElement
+let mediaType = null;   // 'image' | 'video' | 'camera'
+let videoEl = null;
+let cameraStream = null;
+let opacity = 0.85;
+let animId = null;
+let dragging = null;
+let dragOffset = { x: 0, y: 0 };
+
+const COLORS = ['#ff4444', '#44aaff', '#44ff88', '#ffcc00'];
+const LABELS = ['A', 'B', 'C', 'D'];
+const HINTS = [
+  'Tocca il 1° angolo della superficie',
+  'Tocca il 2° angolo',
+  'Tocca il 3° angolo',
+  'Tocca il 4° angolo — chiudi il quadrilatero',
+  'Trascina i punti per aggiustare la prospettiva ✓'
+];
+
+// ── Resize ─────────────────────────────────────────────────────────────────
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  const rect = wrap.getBoundingClientRect();
+  // Only reset if size changed significantly
+  if (Math.abs(W - rect.width) > 2 || Math.abs(H - rect.height) > 2) {
+    // Scale existing points proportionally
+    if (W > 0 && H > 0 && points.length > 0) {
+      const sx = rect.width / W;
+      const sy = rect.height / H;
+      points = points.map(p => ({ x: p.x * sx, y: p.y * sy }));
+    }
+    W = rect.width;
+    H = rect.height;
+    canvas.width = W;
+    canvas.height = H;
+    updateSVG();
+    draw();
+  }
+}
+window.addEventListener('resize', resize);
+setTimeout(resize, 50);
+
+// ── Canvas coordinate helper ───────────────────────────────────────────────
+function canvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const src = e.changedTouches ? e.changedTouches[0] : e;
+  return {
+    x: (src.clientX - r.left) * (W / r.width),
+    y: (src.clientY - r.top) * (H / r.height)
+  };
+}
+
+// ── Mode & controls ────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  btnSet.classList.toggle('active', m === 'set');
+  btnDrag.classList.toggle('active', m === 'drag');
+}
+
+function resetPoints() {
+  points = [];
+  updateSVG();
+  draw();
+  updateHint();
+  setMode('set');
+}
+
+function updateHint() {
+  hint.textContent = HINTS[points.length] || '';
+  countBadge.textContent = `${points.length} / 4 pt`;
+}
+
+// ── File loading ───────────────────────────────────────────────────────────
+function loadFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  stopCamera();
+
+  if (file.type.startsWith('video')) {
+    mediaType = 'video';
+    if (videoEl) { videoEl.pause(); }
+    videoEl = document.createElement('video');
+    Object.assign(videoEl, { src: url, loop: true, muted: true, playsInline: true, crossOrigin: 'anonymous' });
+    videoEl.addEventListener('loadeddata', () => {
+      media = videoEl;
+      videoEl.play();
+      hint.textContent = HINTS[points.length];
+      renderLoop();
+    });
+  } else {
+    mediaType = 'image';
+    const img = new Image();
+    img.onload = () => {
+      media = img;
+      hint.textContent = HINTS[points.length];
+      renderLoop();
+    };
+    img.src = url;
+  }
+}
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+async function startCamera() {
+  stopCamera();
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+    mediaType = 'camera';
+    videoEl = document.createElement('video');
+    videoEl.srcObject = cameraStream;
+    videoEl.muted = true;
+    videoEl.playsInline = true;
+    videoEl.onloadedmetadata = () => {
+      videoEl.play();
+      media = videoEl;
+      hint.textContent = HINTS[points.length];
+      renderLoop();
+    };
+  } catch (err) {
+    alert('Camera non disponibile: ' + err.message);
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+}
+
+// ── Touch / Mouse events on canvas ────────────────────────────────────────
+const svg = document.getElementById('overlay-svg');
+
+svg.addEventListener('touchstart', onTouchStart, { passive: false });
+svg.addEventListener('mousedown', onMouseDown);
+document.addEventListener('mousemove', onMouseMove);
+document.addEventListener('mouseup', onPointerUp);
+document.addEventListener('touchmove', onTouchMove, { passive: false });
+document.addEventListener('touchend', onPointerUp);
+
+function findNearestHandle(pos, threshold = 30) {
+  let best = -1, bestDist = threshold;
+  points.forEach((p, i) => {
+    const d = Math.hypot(p.x - pos.x, p.y - pos.y);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  return best;
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  const pos = canvasPos(e);
+  const near = findNearestHandle(pos);
+  if (mode === 'drag' && near >= 0) {
+    dragging = near;
+    dragOffset = { x: pos.x - points[near].x, y: pos.y - points[near].y };
+  } else if (mode === 'set' && points.length < 4) {
+    addPoint(pos);
+  } else if (mode === 'drag' || points.length >= 4) {
+    // allow drag even without explicit mode if near handle
+    if (near >= 0) {
+      dragging = near;
+      dragOffset = { x: pos.x - points[near].x, y: pos.y - points[near].y };
+    }
+  }
+}
+
+function onMouseDown(e) {
+  const pos = canvasPos(e);
+  const near = findNearestHandle(pos, 20);
+  if (near >= 0) {
+    dragging = near;
+    dragOffset = { x: pos.x - points[near].x, y: pos.y - points[near].y };
+  } else if (mode === 'set' && points.length < 4) {
+    addPoint(pos);
+  }
+}
+
+function onTouchMove(e) {
+  if (dragging === null) return;
+  e.preventDefault();
+  const pos = canvasPos(e);
+  points[dragging] = {
+    x: Math.max(0, Math.min(W, pos.x - dragOffset.x)),
+    y: Math.max(0, Math.min(H, pos.y - dragOffset.y))
+  };
+  updateSVG(); draw();
+}
+
+function onMouseMove(e) {
+  if (dragging === null) return;
+  const pos = canvasPos(e);
+  points[dragging] = {
+    x: Math.max(0, Math.min(W, pos.x - dragOffset.x)),
+    y: Math.max(0, Math.min(H, pos.y - dragOffset.y))
+  };
+  updateSVG(); draw();
+}
+
+function onPointerUp() { dragging = null; }
+
+function addPoint(pos) {
+  points.push(pos);
+  updateSVG();
+  updateHint();
+  if (points.length === 4) setMode('drag');
+  draw();
+}
+
+// ── SVG overlay ───────────────────────────────────────────────────────────
+function updateSVG() {
+  if (points.length >= 2) {
+    quad.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
+    quad.style.opacity = points.length === 4 ? '1' : '0.4';
+  } else {
+    quad.setAttribute('points', '');
+  }
+
+  handlesG.innerHTML = '';
+  points.forEach((p, i) => {
+    const col = COLORS[i];
+    const g = ns('g'); g.setAttribute('class', `point-handle ph-${i}`);
+
+    const outer = ns('circle');
+    attr(outer, { cx: p.x, cy: p.y, r: 22, fill: col, 'fill-opacity': '0.15', stroke: 'none' });
+
+    const ring = ns('circle');
+    attr(ring, { cx: p.x, cy: p.y, r: 13, fill: 'none', stroke: col, 'stroke-width': '2', filter: 'url(#glow)' });
+
+    const dot = ns('circle');
+    attr(dot, { cx: p.x, cy: p.y, r: 5, fill: col });
+
+    const lbl = ns('text');
+    attr(lbl, { x: p.x + 17, y: p.y - 10, fill: col, 'font-size': '11', 'font-weight': '700', 'font-family': 'monospace' });
+    lbl.textContent = LABELS[i];
+
+    [outer, ring, dot, lbl].forEach(el => g.appendChild(el));
+
+    g.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pos = canvasPos(e);
+      dragging = i;
+      dragOffset = { x: pos.x - points[i].x, y: pos.y - points[i].y };
+    }, { passive: false });
+
+    g.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      const pos = canvasPos(e);
+      dragging = i;
+      dragOffset = { x: pos.x - points[i].x, y: pos.y - points[i].y };
+    });
+
+    handlesG.appendChild(g);
+  });
+}
+
+function ns(tag) { return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+function attr(el, obj) { for (const k in obj) el.setAttribute(k, obj[k]); }
+
+// ── Drawing ───────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw background media (for camera: full bleed)
+  if (media && mediaType === 'camera') {
+    const mw = media.videoWidth || 1;
+    const mh = media.videoHeight || 1;
+    const scale = Math.max(W / mw, H / mh);
+    const dw = mw * scale, dh = mh * scale;
+    ctx.drawImage(media, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  }
+
+  if (media && points.length === 4) {
+    const mw = media.videoWidth || media.naturalWidth || media.width || 1;
+    const mh = media.videoHeight || media.naturalHeight || media.height || 1;
+    drawPerspective(media, mw, mh, points, opacity);
+  } else if (!media) {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.font = '500 14px Helvetica Neue, Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('← Carica un\'immagine o video per iniziare', W / 2, H / 2);
+  }
+}
+
+// ── Perspective projection via mesh subdivision ───────────────────────────
+function drawPerspective(src, sw, sh, dst, alpha) {
+  const H_mat = computeHomography(
+    [{ x: 0, y: 0 }, { x: sw, y: 0 }, { x: sw, y: sh }, { x: 0, y: sh }],
+    dst
+  );
+  if (!H_mat) return;
+
+  const STEPS = 32; // grid subdivisions — higher = more accurate
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  for (let vi = 0; vi < STEPS; vi++) {
+    for (let ui = 0; ui < STEPS; ui++) {
+      const u0 = ui / STEPS, u1 = (ui + 1) / STEPS;
+      const v0 = vi / STEPS, v1 = (vi + 1) / STEPS;
+
+      const c = [
+        applyH(H_mat, u0 * sw, v0 * sh),
+        applyH(H_mat, u1 * sw, v0 * sh),
+        applyH(H_mat, u1 * sw, v1 * sh),
+        applyH(H_mat, u0 * sw, v1 * sh)
+      ];
+
+      // Skip if outside canvas
+      if (c.every(p => p.x < 0 || p.x > W || p.y < 0 || p.y > H)) continue;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(c[0].x, c[0].y);
+      ctx.lineTo(c[1].x, c[1].y);
+      ctx.lineTo(c[2].x, c[2].y);
+      ctx.lineTo(c[3].x, c[3].y);
+      ctx.closePath();
+      ctx.clip();
+
+      // Compute where to draw: top-left corner, angle, dimensions
+      const pw = Math.hypot(c[1].x - c[0].x, c[1].y - c[0].y);
+      const ph = Math.hypot(c[3].x - c[0].x, c[3].y - c[0].y);
+      const ang = Math.atan2(c[1].y - c[0].y, c[1].x - c[0].x);
+      const angV = Math.atan2(c[3].y - c[0].y, c[3].x - c[0].x);
+
+      const patchW = (u1 - u0) * sw;
+      const patchH = (v1 - v0) * sh;
+
+      ctx.translate(c[0].x, c[0].y);
+      ctx.rotate(ang);
+
+      // vertical skew correction
+      const skew = Math.tan(angV - ang - Math.PI / 2);
+      ctx.transform(1, 0, skew, ph / (patchH * Math.cos(angV - ang - Math.PI / 2) || 1) * (patchH / (ph || 1)), 0, 0);
+
+      ctx.drawImage(
+        src,
+        u0 * sw, v0 * sh, patchW, patchH,
+        0, 0, pw + 1, ph + 1
+      );
+      ctx.restore();
+    }
+  }
+
+  ctx.restore();
+}
+
+// ── Homography solver ─────────────────────────────────────────────────────
+function computeHomography(src, dst) {
+  const A = [];
+  for (let i = 0; i < 4; i++) {
+    const { x: sx, y: sy } = src[i];
+    const { x: dx, y: dy } = dst[i];
+    A.push([-sx, -sy, -1, 0, 0, 0, sx * dx, sy * dx, dx]);
+    A.push([0, 0, 0, -sx, -sy, -1, sx * dy, sy * dy, dy]);
+  }
+  return buildMatrix(svd_null(A));
+}
+
+function svd_null(A) {
+  const n = 9, m = A.length;
+  // Compute A^T A
+  const ATA = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < m; i++)
+    for (let j = 0; j < n; j++)
+      for (let k = 0; k < n; k++)
+        ATA[j][k] += A[i][j] * A[i][k];
+
+  // Power iteration to find smallest eigenvector (null space approximation)
+  // We find the largest eigenvector of (I*lambda_max - ATA)
+  // Simpler: run inverse iteration-like approach by deflation
+  // Here we just do many iterations of the normalized system
+  let v = new Array(n).fill(0);
+  v[8] = 1; // initial guess
+
+  // Find largest eigenvalue approx
+  let lmax = 0;
+  for (let i = 0; i < n; i++) lmax += ATA[i][i];
+  lmax = Math.abs(lmax);
+
+  // Shift: (lmax*I - ATA) has largest eigen = lmax - lmin
+  const B = ATA.map((row, i) => row.map((val, j) => (i === j ? lmax - val : -val)));
+
+  for (let iter = 0; iter < 300; iter++) {
+    const nv = new Array(n).fill(0);
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++)
+        nv[i] += B[i][j] * v[j];
+    const norm = Math.sqrt(nv.reduce((s, x) => s + x * x, 0));
+    if (norm < 1e-12) break;
+    v = nv.map(x => x / norm);
+  }
+  return v;
+}
+
+function buildMatrix(h) {
+  return [[h[0], h[1], h[2]], [h[3], h[4], h[5]], [h[6], h[7], h[8]]];
+}
+
+function applyH(M, x, y) {
+  const w = M[2][0] * x + M[2][1] * y + M[2][2];
+  return {
+    x: (M[0][0] * x + M[0][1] * y + M[0][2]) / w,
+    y: (M[1][0] * x + M[1][1] * y + M[1][2]) / w
+  };
+}
+
+// ── Render loop ───────────────────────────────────────────────────────────
+function renderLoop() {
+  if (animId) cancelAnimationFrame(animId);
+  function frame() {
+    draw();
+    if (mediaType === 'video' || mediaType === 'camera') {
+      animId = requestAnimationFrame(frame);
+    }
+  }
+  frame();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+updateHint();
+draw();
+</script>
+</body>
+</html>
