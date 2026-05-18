@@ -1,141 +1,28 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video AR sul palazzo</title>
-    <style> body { margin: 0; overflow: hidden; } </style>
-  </head>
-  <body>
-    <button id="start-ar" style="position:absolute; z-index:1; top:20px; left:20px;">
-      Avvia AR e seleziona i 4 punti
-    </button>
-    <button id="confirm-points" style="position:absolute; z-index:1; top:60px; left:20px; display:none;">
-      Conferma superficie
-    </button>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Alice AR - Immersal VPS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
 
-    <script type="importmap">
-      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                     "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
-    </script>
+    <div id="ui-overlay">
+        <h1>Alice attraverso lo specchio</h1>
+        <p>Inquadra l'ambiente circostante per posizionare la scultura.</p>
+        <button id="start-btn">AVVIA ESPERIENZA</button>
+    </div>
 
-    <script type="module">
-      import * as THREE from 'three';
-      import { ARButton } from 'three/addons/webxr/ARButton.js';
-      import { XRPlaneDetector } from 'three/addons/webxr/XRPlaneDetector.js';
+    <div id="status-indicator">In attesa di attivazione...</div>
 
-      let scene, camera, renderer, video, videoMesh;
-      let selectedPoints = [];
-      let planeDetector;
-      const raycaster = new THREE.Raycaster();
+    <video id="camera-feed" autoplay playsinline></video>
 
-      async function init() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.xr.enabled = true;
-        document.body.appendChild(renderer.domElement);
+    <canvas id="ar-canvas"></canvas>
 
-        // Attiva il plane detector per superfici verticali
-        planeDetector = new XRPlaneDetector({ world: scene });
-        scene.add(planeDetector);
+    <canvas id="hidden-capture-canvas" style="display: none;"></canvas>
 
-        // Luce (non necessaria per MeshBasicMaterial, ma utile per debug)
-        scene.add(new THREE.AmbientLight(0xffffff));
-
-        // Bottone per entrare in AR
-        document.getElementById('start-ar').addEventListener('click', () => {
-          navigator.xr.requestSession('immersive-ar', {
-            requiredFeatures: ['plane-detection', 'hit-test']
-          }).then(onSessionStarted);
-        });
-
-        // Configura video
-        video = document.createElement('video');
-        video.src = 'videos/opera1.mp4';
-        video.loop = true;
-        video.muted = true;
-        video.play();
-
-        renderer.setAnimationLoop(render);
-      }
-
-      function onSessionStarted(session) {
-        renderer.xr.setSession(session);
-        const viewerSpace = session.viewerSpace;
-        const hitTestSource = session.requestHitTestSource({ space: viewerSpace });
-
-        session.addEventListener('select', (event) => {
-          const frame = event.frame;
-          const hitTestResults = frame.getHitTestResults(hitTestSource);
-          if (hitTestResults.length > 0) {
-            const hitPose = hitTestResults[0].pose;
-            const point = new THREE.Vector3(
-              hitPose.transform.position.x,
-              hitPose.transform.position.y,
-              hitPose.transform.position.z
-            );
-            selectedPoints.push(point);
-            console.log(`Punto ${selectedPoints.length}:`, point);
-
-            if (selectedPoints.length === 4) {
-              document.getElementById('confirm-points').style.display = 'block';
-            }
-          }
-        });
-
-        document.getElementById('confirm-points').addEventListener('click', () => {
-          createVideoQuad(selectedPoints);
-          document.getElementById('confirm-points').style.display = 'none';
-          selectedPoints = [];
-        });
-
-        session.addEventListener('end', () => {
-          // Pulizia
-        });
-      }
-
-      function createVideoQuad(points) {
-        // Assicurati che i punti siano co-planari (appartengano allo stesso piano verticale)
-        // Creazione della shape semplificata, assumendo siano ordinati
-        const shape = new THREE.Shape();
-        // Per semplicità proiettiamo i punti su un piano 2D (es. coordinate XZ se il muro è verticale)
-        // Qui serve un'elaborazione più robusta: calcola normale del piano, ruota, ecc.
-        // Per brevità mostro un approccio semplificato (solo per un muro frontale lungo l'asse XZ)
-        const center = new THREE.Vector3();
-        points.forEach(p => center.add(p));
-        center.divideScalar(4);
-
-        // Crea una geometria planare sul piano locale XY e poi ruotala
-        const planeNormal = new THREE.Vector3(0, 0, 1); // ipotizzando normale uscente verso la camera
-        const quaternion = new THREE.Quaternion().setFromUnitVectors(
-          new THREE.Vector3(0, 0, 1),
-          planeNormal
-        );
-
-        // Trasforma i punti nello spazio locale del piano
-        const localPoints = points.map(p => p.clone().sub(center).applyQuaternion(quaternion.clone().invert()));
-        const shape2d = new THREE.Shape();
-        shape2d.moveTo(localPoints[0].x, localPoints[0].y);
-        shape2d.lineTo(localPoints[1].x, localPoints[1].y);
-        shape2d.lineTo(localPoints[2].x, localPoints[2].y);
-        shape2d.lineTo(localPoints[3].x, localPoints[3].y);
-        shape2d.closePath();
-
-        const geometry = new THREE.ShapeGeometry(shape2d);
-        const texture = new THREE.VideoTexture(video);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        videoMesh = new THREE.Mesh(geometry, material);
-        videoMesh.position.copy(center);
-        videoMesh.quaternion.copy(quaternion);
-        scene.add(videoMesh);
-      }
-
-      function render() {
-        renderer.render(scene, camera);
-      }
-
-      init();
-    </script>
-  </body>
+    <script src="app.js"></script>
+</body>
 </html>
