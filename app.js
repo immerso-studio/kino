@@ -1,4 +1,4 @@
-// --- CONFIGURAZIONI IMMERSAL (Inserite le tue credenziali) ---
+// --- CONFIGURAZIONI IMMERSAL ---
 const IMMERSAL_TOKEN = "4123b556a9f96f088b1469f2d9fb0fd2e85c67a8b0031637654c09d4b07cd130";
 const MAP_ID = 146427;
 
@@ -19,31 +19,46 @@ let deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
 function initThree() {
     scene = new THREE.Scene();
     
-    // Telecamera con FOV standard per smartphone
+    // Telecamera fissa al centro, ruoterà solo con il giroscopio
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     
     renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById('ar-canvas'),
-        alpha: true, // Sfondo trasparente per vedere il video sotto
+        alpha: true, // Trasparente per vedere il video sotto
         antialias: true
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // Creiamo un Gruppo Ancoraggio. Sposteremo questo gruppo quando Immersal risponde.
+    // Questo gruppo rappresenta l'intero ambiente scansionato (la Mappa)
     renderGroup = new THREE.Group();
     scene.add(renderGroup);
 
-    // --- CREAZIONE CUBO ROSSO AL CENTRO ---
-    const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5); // Cubo di 50cm
-    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Rosso puro
-    const cube = new THREE.Mesh(geometry, material);
-    
-    // Posizioniamo il cubo all'origine del nostro gruppo
-    cube.position.set(0, 0, 0); 
-    renderGroup.add(cube);
+    // Funzione helper per creare i cubi di test
+    function createTestCube(colorHex, x, y, z) {
+        const geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4); // Cubi da 40cm
+        const material = new THREE.MeshBasicMaterial({ color: colorHex });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.set(x, y, z);
+        
+        // Aggiungiamo un contorno per vederli meglio sul video
+        const edges = new THREE.EdgesGeometry(geometry);
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+        cube.add(line);
+        
+        renderGroup.add(cube);
+    }
 
-    // Nascondiamo il gruppo finché la stanza non viene localizzata
+    // --- POSIZIONAMENTO DEI 6 CUBI DI TEST ---
+    // Il punto (0,0,0) corrisponde al punto in cui ti trovavi quando hai iniziato la scansione Immersal
+    createTestCube(0xff0000, 0, 0, 0);    // ROSSO: Centro Esatto (Origine Mappa)
+    createTestCube(0x0000ff, 0, 0, -2);   // BLU: 2 metri "Avanti"
+    createTestCube(0x00ffff, 0, 0, 2);    // CIANO: 2 metri "Dietro"
+    createTestCube(0x00ff00, 2, 0, 0);    // VERDE: 2 metri a "Destra"
+    createTestCube(0xffff00, -2, 0, 0);   // GIALLO: 2 metri a "Sinistra"
+    createTestCube(0xff00ff, 0, 1, 0);    // MAGENTA: 1 metro in "Alto" (rispetto al centro)
+
+    // Nascondiamo tutto finché non riceviamo le coordinate dal VPS
     renderGroup.visible = false;
 
     // Gestione ridimensionamento finestra
@@ -55,13 +70,12 @@ function initThree() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Applichiamo i dati del giroscopio del telefono alla telecamera 3D per renderla fluida
+    // Rotazione della telecamera basata sui sensori dello smartphone
     if (deviceOrientation) {
         const alpha = THREE.MathUtils.degToRad(deviceOrientation.alpha);
         const beta = THREE.MathUtils.degToRad(deviceOrientation.beta);
         const gamma = THREE.MathUtils.degToRad(deviceOrientation.gamma);
 
-        // Orientamento base per smartphone (corregge l'asse di rotazione)
         camera.rotation.set(beta, gamma, alpha, 'YXZ');
     }
 
@@ -80,7 +94,7 @@ async function startCamera() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             video: { 
-                facingMode: 'environment', // Fotocamera posteriore
+                facingMode: 'environment',
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
             },
@@ -91,16 +105,16 @@ async function startCamera() {
         videoElement.onloadedmetadata = () => {
             captureCanvas.width = videoElement.videoWidth;
             captureCanvas.height = videoElement.videoHeight;
-            // Avvia il ciclo di scansione VPS
+            // Quando il video parte, avvia la scansione verso Immersal
             startLocalizationLoop();
         };
     } catch (err) {
         console.error("Impossibile accedere alla fotocamera:", err);
-        statusIndicator.innerText = "Errore fotocamera. Controlla i permessi HTTPS.";
+        statusIndicator.innerText = "Errore fotocamera. Ricarica e accetta i permessi.";
     }
 }
 
-// --- 3. ATTIVAZIONE SENSORI ORIENTAMENTO (iOS richiede autorizzazione esplicita) ---
+// --- 3. ATTIVAZIONE SENSORI ORIENTAMENTO ---
 function initSensors() {
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         DeviceOrientationEvent.requestPermission()
@@ -116,29 +130,25 @@ function initSensors() {
 }
 
 function handleOrientation(event) {
-    deviceOrientation.alpha = event.alpha || 0; // Rotazione Z (bussola)
-    deviceOrientation.beta = event.beta || 0;   // Inclinazione X (avanti/dietro)
-    deviceOrientation.gamma = event.gamma || 0; // Inclinazione Y (sinistra/destra)
+    deviceOrientation.alpha = event.alpha || 0;
+    deviceOrientation.beta = event.beta || 0;
+    deviceOrientation.gamma = event.gamma || 0;
 }
 
-// --- 4. COMUNICAZIONE CON LE REST API DI IMMERSAL ---
+// --- 4. COMUNICAZIONE REST API CON IMMERSAL ---
 async function localizeFrame() {
     if (isLocalized) return;
 
-    statusIndicator.innerText = "Analisi stanza (VPS)...";
+    statusIndicator.innerText = "Scansione ambiente...";
 
-    // "Rubiamo" il frame corrente dal video e lo stampiamo sul canvas nascosto
+    // Disegna il frame corrente sul canvas invisibile ed estrai il Base64
     ctx.drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
-    
-    // Estraiamo la stringa Base64 pura (rimuovendo il prefisso dei dati)
     const base64Image = captureCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-    // Payload per Immersal
     const payload = {
         token: IMMERSAL_TOKEN,
         b64: base64Image,
         mapIds: [{ id: parseInt(MAP_ID) }],
-        // Parametri intrinseci della fotocamera (valori standard approssimati per mobile)
         fx: captureCanvas.width * 1.2,
         fy: captureCanvas.width * 1.2,
         ox: captureCanvas.width / 2,
@@ -155,43 +165,44 @@ async function localizeFrame() {
         const data = await response.json();
 
         if (data.success && data.px !== undefined) {
-            console.log("Localizzazione riuscita!", data);
+            console.log("Localizzazione riuscita! Coordinate Ricevute:", data);
             isLocalized = true;
-            statusIndicator.innerText = "Stanza Riconosciuta!";
+            statusIndicator.innerText = "Mappa ancorata!";
             statusIndicator.style.backgroundColor = "#00ff00";
             statusIndicator.style.color = "#000";
 
-            // Posizioniamo il gruppo 3D basandoci sulle coordinate reali restituite da Immersal
-            // Nota: Se il cubo appare invertito, potrebbe essere necessario invertire un asse (es. -data.pz)
-            renderGroup.position.set(data.px, data.py, data.pz);
+            // MATEMATICA DI POSIZIONAMENTO
+            // Immersal ci dice dove si trova il telefono rispetto all'origine della mappa.
+            // Dato che in Three.js la nostra camera è ferma, muoviamo l'intero renderGroup (la Mappa)
+            // in direzione opposta rispetto alla telecamera per allineare i due mondi.
             
-            // Se Immersal restituisce la rotazione della mappa (matrice o quaternione r00..r22)
-            // puoi applicarla al gruppo qui per orientare il mondo.
+            renderGroup.position.set(-data.px, -data.py, data.pz);
             
-            renderGroup.visible = true; // Mostriamo finalmente il cubo rosso
+            // Rendiamo visibili i cubi
+            renderGroup.visible = true; 
         } else {
-            statusIndicator.innerText = "Stanza non riconosciuta. Guarda i dettagli dell'ambiente.";
+            // Se fallisce, continua silenziosamente nel loop
+            statusIndicator.innerText = "Guarda l'ambiente scansionato...";
         }
     } catch (error) {
         console.error("Errore VPS:", error);
-        statusIndicator.innerText = "Errore di connessione al server Immersal.";
     }
 }
 
+// Loop che interroga il server ogni 2 secondi
 function startLocalizationLoop() {
-    // Prova a localizzare l'ambiente ogni 2.5 secondi finché non fa centro
     const loop = setInterval(() => {
         if (isLocalized) {
             clearInterval(loop);
         } else {
             localizeFrame();
         }
-    }, 2500);
+    }, 2000);
 }
 
-// --- AVVIO FORMALE TRAMITE BOTTONE ---
+// --- AVVIO FORMALE ---
 startBtn.addEventListener('click', () => {
-    uiOverlay.style.display = 'none'; // Nascondi la schermata iniziale
+    uiOverlay.style.display = 'none';
     initThree();
     initSensors();
     startCamera();
