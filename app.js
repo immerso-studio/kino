@@ -10,73 +10,52 @@ const uiOverlay = document.getElementById('ui-overlay');
 const statusIndicator = document.getElementById('status-indicator');
 
 let scene, camera, renderer, renderGroup;
-let isLocalized = false;
-let deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
 
-// Variabili per il movimento fluido (Lerp)
-let targetPosition = new THREE.Vector3(); // La posizione reale calcolata da Immersal
-let currentPosition = new THREE.Vector3(); // La posizione attuale del gruppo 3D
-
+// --- 1. SETUP THREE.JS E WEBXR ---
 function initThree() {
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    
+    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
     renderer = new THREE.WebGLRenderer({
         canvas: document.getElementById('ar-canvas'),
         alpha: true,
         antialias: true
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // ABILITIAMO WEBXR (ARCore / ARKit)
+    renderer.xr.enabled = true;
 
     renderGroup = new THREE.Group();
     scene.add(renderGroup);
 
+    // Creazione dei cubi di test
     function createTestCube(colorHex, x, y, z) {
-        const geometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+        const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
         const material = new THREE.MeshBasicMaterial({ color: colorHex });
         const cube = new THREE.Mesh(geometry, material);
         cube.position.set(x, y, z);
-        
         const edges = new THREE.EdgesGeometry(geometry);
         const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
         cube.add(line);
-        
         renderGroup.add(cube);
     }
 
-    createTestCube(0xff0000, 0, 0, 0);    // Rosso: Centro
+    createTestCube(0xff0000, 0, 0, 0);    // Rosso: Centro Origine
     createTestCube(0x0000ff, 0, 0, -2);   // Blu: Avanti
     createTestCube(0x00ffff, 0, 0, 2);    // Ciano: Dietro
     createTestCube(0x00ff00, 2, 0, 0);    // Verde: Destra
     createTestCube(0xffff00, -2, 0, 0);   // Giallo: Sinistra
-    createTestCube(0xff00ff, 0, 1, 0);    // Magenta: In alto
+    createTestCube(0xff00ff, 0, 1, 0);    // Magenta: Alto
 
     renderGroup.visible = false;
     window.addEventListener('resize', onWindowResize);
     
-    animate();
-}
-
-function animate() {
-    requestAnimationFrame(animate);
-
-    // 1. ROTAZIONE (3DoF) - Gestita velocemente dal giroscopio
-    if (deviceOrientation) {
-        const alpha = THREE.MathUtils.degToRad(deviceOrientation.alpha);
-        const beta = THREE.MathUtils.degToRad(deviceOrientation.beta);
-        const gamma = THREE.MathUtils.degToRad(deviceOrientation.gamma);
-        camera.rotation.set(beta, gamma, alpha, 'YXZ');
-    }
-
-    // 2. TRASLAZIONE (6DoF simulato) - Muove fluidamente la mappa verso la posizione corretta
-    if (isLocalized) {
-        // Il Lerp calcola un punto intermedio, creando un movimento morbido (0.1 è la velocità di "scivolamento")
-        currentPosition.lerp(targetPosition, 0.1); 
-        renderGroup.position.copy(currentPosition);
-    }
-
-    renderer.render(scene, camera);
+    // WebXR richiede setAnimationLoop invece di requestAnimationFrame
+    renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+    });
 }
 
 function onWindowResize() {
@@ -85,47 +64,30 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-async function startCamera() {
-    statusIndicator.innerText = "Avvio fotocamera...";
+// --- 2. FASE "SCOUT": RICERCA DELLA STANZA ---
+async function startCameraAndLocalize() {
+    statusIndicator.innerText = "Inizializzazione sensori...";
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false
+            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         videoElement.srcObject = stream;
         
         videoElement.onloadedmetadata = () => {
             captureCanvas.width = videoElement.videoWidth;
             captureCanvas.height = videoElement.videoHeight;
-            startLocalizationLoop();
+            // Eseguiamo una singola ricerca forzata finché non trova la stanza
+            findRoomLoop();
         };
     } catch (err) {
         statusIndicator.innerText = "Errore fotocamera.";
     }
 }
 
-function initSensors() {
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().then(permissionState => {
-            if (permissionState === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-        }).catch(console.error);
-    } else {
-        window.addEventListener('deviceorientation', handleOrientation);
-    }
-}
-
-function handleOrientation(event) {
-    deviceOrientation.alpha = event.alpha || 0;
-    deviceOrientation.beta = event.beta || 0;
-    deviceOrientation.gamma = event.gamma || 0;
-}
-
-// Chiamata API ottimizzata per essere eseguita ripetutamente
-async function localizeFrame() {
-    if(!videoElement.videoWidth) return; // Aspetta che il video sia pronto
-
+function findRoomLoop() {
+    statusIndicator.innerText = "Guarda la stanza. Sto calcolando lo spazio...";
+    
     ctx.drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
-    // Abbassiamo leggermente la qualità jpeg (0.6) per fare invii più veloci
     const base64Image = captureCanvas.toDataURL('image/jpeg', 0.6).split(',')[1];
 
     const payload = {
@@ -138,51 +100,50 @@ async function localizeFrame() {
         oy: captureCanvas.height / 2
     };
 
-    try {
-        const response = await fetch('https://api.immersal.com/localizeb64', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
+    fetch('https://api.immersal.com/localizeb64', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(data => {
         if (data.success && data.px !== undefined) {
-            // Se è la primissima volta, rendiamo visibile il gruppo
-            if (!isLocalized) {
-                isLocalized = true;
-                renderGroup.visible = true;
-                statusIndicator.style.backgroundColor = "#00ff00";
-                statusIndicator.style.color = "#000";
-                
-                // Setta la posizione immediatamente per il primo frame
-                currentPosition.set(-data.px, -data.py, data.pz);
-            }
+            // STANZA TROVATA!
+            statusIndicator.style.backgroundColor = "#00ff00";
+            statusIndicator.style.color = "#000";
+            statusIndicator.innerText = "Stanza riconosciuta! Resta fermo e avvia AR.";
+
+            // 1. Applichiamo l'offset alla mappa.
+            // (La telecamera di WebXR partirà da 0,0,0 nel momento in cui l'utente premerà il bottone.
+            //  Quindi spostiamo la mappa rispetto a dove si trova il telefono ORA).
+            renderGroup.position.set(-data.px, -data.py, data.pz);
+            renderGroup.visible = true;
+
+            // 2. Fermiamo il video in background per liberare memoria
+            const tracks = videoElement.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoElement.style.display = 'none';
+
+            // 3. Generiamo il bottone nativo WebXR (ARCore/ARKit)
+            const arBtn = THREE.ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
+            document.body.appendChild(arBtn);
             
-            statusIndicator.innerText = "Tracciamento in corso...";
+            // Il bottone di default di Three.js viene posizionato in basso al centro
+            arBtn.addEventListener('click', () => {
+                statusIndicator.style.display = 'none'; // Nascondiamo le info quando entra in AR
+            });
 
-            // Aggiorna la posizione target. L'animazione in 'animate()' farà il resto
-            targetPosition.set(-data.px, -data.py, data.pz);
         } else {
-            if(isLocalized) {
-               statusIndicator.innerText = "Tracciamento perso... Guarda la mappa."; 
-            }
+            // Riprova dopo 1 secondo se non riconosce la stanza
+            setTimeout(findRoomLoop, 1000);
         }
-    } catch (error) {
-        console.error("Errore API Immersal:", error);
-    }
+    })
+    .catch(err => console.error(err));
 }
 
-function startLocalizationLoop() {
-    // Abbiamo rimosso il 'clearInterval'. Ora scatta una foto ogni 1 secondo (1000ms) all'infinito!
-    setInterval(() => {
-        localizeFrame();
-    }, 1000); 
-}
-
+// --- AVVIO APP ---
 startBtn.addEventListener('click', () => {
     uiOverlay.style.display = 'none';
     initThree();
-    initSensors();
-    startCamera();
+    startCameraAndLocalize();
 });
