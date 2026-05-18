@@ -1,723 +1,141 @@
 <!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>VidArt — Proiezione AR</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-:root{
-  --accent:#e8ff3c;
-  --border:rgba(255,255,255,0.12);
-  --surface:rgba(8,8,8,0.93);
-  --muted:rgba(255,255,255,0.42);
-  --r:14px;
-}
-
-html,body{
-  width:100%;height:100%;
-  background:#000;
-  color:#f2f2f2;
-  font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
-  overflow:hidden;
-  -webkit-tap-highlight-color:transparent;
-  user-select:none;
-}
-
-/* ── PHASE 1: SHOOT ── */
-#phase-shoot{
-  position:fixed;inset:0;z-index:100;
-  display:flex;flex-direction:column;
-  align-items:center;justify-content:flex-end;
-  background:#000;
-}
-#live-cam{
-  position:absolute;inset:0;
-  width:100%;height:100%;object-fit:cover;
-}
-#shoot-ui{
-  position:relative;z-index:2;
-  display:flex;flex-direction:column;
-  align-items:center;gap:18px;
-  padding-bottom:52px;
-}
-#shoot-hint{
-  font-size:13px;color:rgba(255,255,255,0.6);
-  background:rgba(0,0,0,.55);padding:8px 18px;border-radius:20px;
-  backdrop-filter:blur(8px);letter-spacing:.03em;
-}
-#shutter{
-  width:76px;height:76px;border-radius:50%;
-  border:5px solid rgba(255,255,255,.35);
-  background:#fff;cursor:pointer;
-  box-shadow:0 0 0 10px rgba(255,255,255,.12);
-  transition:transform .1s;
-}
-#shutter:active{transform:scale(.88);}
-
-/* ── PHASE 2: MAP ── */
-#phase-map{
-  position:fixed;inset:0;z-index:90;
-  display:none;
-}
-#photo-bg{
-  position:absolute;inset:0;
-  width:100%;height:100%;object-fit:cover;
-}
-#proj-canvas{
-  position:absolute;inset:0;
-  width:100%;height:100%;
-  pointer-events:none;
-  z-index:1;
-}
-#map-svg{
-  position:absolute;inset:0;
-  width:100%;height:100%;
-  touch-action:none;
-  z-index:2;
-  cursor:crosshair;
-}
-
-/* top bar */
-#map-topbar{
-  position:absolute;top:0;left:0;right:0;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:max(14px,env(safe-area-inset-top)) 16px 14px;
-  background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent);
-  z-index:10;pointer-events:none;
-}
-#map-topbar button{pointer-events:all;}
-#map-logo{
-  font-size:13px;font-weight:700;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--accent);
-}
-#btn-retake{
-  font-size:12px;padding:8px 16px;border-radius:20px;
-  border:1px solid var(--border);background:rgba(0,0,0,.5);
-  color:#f2f2f2;cursor:pointer;backdrop-filter:blur(6px);
-}
-
-/* step dots */
-#step-bar{
-  position:absolute;top:max(58px,calc(env(safe-area-inset-top)+44px));
-  left:50%;transform:translateX(-50%);
-  display:flex;gap:8px;z-index:10;pointer-events:none;
-}
-.dot{
-  width:8px;height:8px;border-radius:50%;
-  background:rgba(255,255,255,.2);transition:all .2s;
-}
-.dot.done{background:rgba(232,255,60,.55);}
-.dot.active{background:var(--accent);transform:scale(1.35);}
-
-/* floating hint */
-#map-hint{
-  position:absolute;bottom:140px;left:50%;transform:translateX(-50%);
-  white-space:nowrap;font-size:13px;
-  background:rgba(0,0,0,.65);padding:9px 18px;border-radius:20px;
-  backdrop-filter:blur(8px);border:1px solid var(--border);
-  z-index:10;pointer-events:none;transition:opacity .3s;
-}
-
-/* bottom bar */
-#map-bottom{
-  position:absolute;bottom:0;left:0;right:0;
-  padding:14px 16px max(28px,env(safe-area-inset-bottom));
-  background:linear-gradient(to top,rgba(0,0,0,.8),transparent);
-  display:flex;gap:10px;justify-content:center;
-  z-index:10;
-}
-.mbt{
-  flex:1;max-width:130px;
-  padding:14px 0;border-radius:10px;
-  border:1px solid var(--border);
-  background:rgba(14,14,14,.85);
-  color:#f2f2f2;font-size:12px;font-weight:600;
-  letter-spacing:.05em;text-transform:uppercase;
-  cursor:pointer;backdrop-filter:blur(6px);
-  transition:background .15s;
-}
-.mbt:active{transform:scale(.96);}
-.mbt.ac{background:var(--accent);color:#000;border-color:var(--accent);}
-.mbt.warn{border-color:rgba(255,80,60,.4);color:rgba(255,130,110,1);}
-
-/* ── VIDEO PANEL ── */
-#backdrop{
-  position:fixed;inset:0;
-  background:rgba(0,0,0,.45);
-  z-index:199;display:none;
-}
-#video-panel{
-  position:fixed;bottom:0;left:0;right:0;
-  max-height:72dvh;
-  background:var(--surface);
-  border-top:1px solid var(--border);
-  border-radius:22px 22px 0 0;
-  z-index:200;
-  display:none;flex-direction:column;
-  backdrop-filter:blur(24px);
-  transform:translateY(100%);
-  transition:transform .34s cubic-bezier(.3,0,.15,1);
-}
-#video-panel.open{transform:translateY(0);}
-
-#ph{
-  width:36px;height:4px;border-radius:2px;
-  background:rgba(255,255,255,.18);
-  margin:12px auto 0;flex-shrink:0;
-}
-#ph-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 20px 6px;flex-shrink:0;
-}
-#ph-title{font-size:15px;font-weight:600;}
-#ph-close{
-  width:30px;height:30px;border-radius:50%;
-  border:1px solid var(--border);background:rgba(255,255,255,.06);
-  color:#f2f2f2;font-size:15px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-}
-#ph-sub{font-size:12px;color:var(--muted);padding:0 20px 10px;flex-shrink:0;}
-
-/* opacity */
-#op-row{
-  display:flex;align-items:center;gap:12px;
-  padding:6px 20px 14px;flex-shrink:0;
-  border-bottom:1px solid var(--border);
-}
-#op-row label{font-size:12px;color:var(--muted);min-width:60px;}
-#op-slider{
-  flex:1;-webkit-appearance:none;appearance:none;
-  height:3px;background:rgba(255,255,255,.15);border-radius:2px;outline:none;
-}
-#op-slider::-webkit-slider-thumb{
-  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-  background:var(--accent);cursor:pointer;
-}
-#op-val{font-size:12px;color:var(--muted);min-width:34px;text-align:right;}
-
-/* artwork cards */
-#vid-list{
-  overflow-y:auto;padding:14px 16px 36px;
-  display:flex;flex-direction:column;gap:10px;
-}
-.vcard{
-  display:flex;align-items:center;gap:14px;
-  padding:14px;border-radius:var(--r);
-  border:1.5px solid var(--border);
-  background:rgba(255,255,255,.04);
-  cursor:pointer;transition:border-color .2s,background .2s;
-}
-.vcard:active{background:rgba(255,255,255,.09);}
-.vcard.sel{border-color:var(--accent);background:rgba(232,255,60,.07);}
-.vthumb{
-  width:58px;height:58px;border-radius:10px;
-  background:#111;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:28px;border:1px solid rgba(255,255,255,.08);
-}
-.vinfo{flex:1;min-width:0;}
-.vname{font-size:14px;font-weight:600;margin-bottom:3px;}
-.vdesc{font-size:12px;color:var(--muted);line-height:1.4;}
-.vcheck{
-  width:22px;height:22px;border-radius:50%;
-  border:2px solid var(--border);
-  display:flex;align-items:center;justify-content:center;
-  font-size:12px;transition:all .2s;flex-shrink:0;
-}
-.vcard.sel .vcheck{background:var(--accent);border-color:var(--accent);color:#000;}
-</style>
-</head>
-<body>
-
-<!-- ════════════════════════════════════
-     FASE 1 — SCATTA LA FOTO
-════════════════════════════════════ -->
-<div id="phase-shoot">
-  <video id="live-cam" autoplay playsinline muted></video>
-  <div id="shoot-ui">
-    <div id="shoot-hint">Inquadra il palazzo e scatta</div>
-    <div id="shutter" onclick="shootPhoto()"></div>
-  </div>
-</div>
-
-<!-- ════════════════════════════════════
-     FASE 2 — MAPPA I PUNTI
-════════════════════════════════════ -->
-<div id="phase-map">
-  <img id="photo-bg" alt="">
-  <canvas id="proj-canvas"></canvas>
-
-  <svg id="map-svg" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <filter id="fg" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="4" result="b"/>
-        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-      </filter>
-    </defs>
-    <polygon id="quad"
-      fill="rgba(232,255,60,0.07)"
-      stroke="rgba(232,255,60,0.5)"
-      stroke-width="1.5" stroke-dasharray="7,5" points=""/>
-    <g id="pts"></g>
-  </svg>
-
-  <div id="map-topbar">
-    <span id="map-logo">VidArt</span>
-    <button id="btn-retake" onclick="retake()">↩ Rifai foto</button>
-  </div>
-
-  <div id="step-bar">
-    <div class="dot" id="d0"></div>
-    <div class="dot" id="d1"></div>
-    <div class="dot" id="d2"></div>
-    <div class="dot" id="d3"></div>
-  </div>
-
-  <div id="map-hint">Tocca il 1° angolo della superficie</div>
-
-  <div id="map-bottom">
-    <button class="mbt warn" onclick="resetPoints()">↺ Reset</button>
-    <button class="mbt ac" id="btn-vid" onclick="openPanel()" style="display:none">
-      🎬 Cambia opera
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video AR sul palazzo</title>
+    <style> body { margin: 0; overflow: hidden; } </style>
+  </head>
+  <body>
+    <button id="start-ar" style="position:absolute; z-index:1; top:20px; left:20px;">
+      Avvia AR e seleziona i 4 punti
     </button>
-  </div>
-</div>
+    <button id="confirm-points" style="position:absolute; z-index:1; top:60px; left:20px; display:none;">
+      Conferma superficie
+    </button>
 
-<!-- ════════════════════════════════════
-     CONFIGURATORE VIDEO
-════════════════════════════════════ -->
-<div id="backdrop" onclick="closePanel()"></div>
-<div id="video-panel">
-  <div id="ph"></div>
-  <div id="ph-header">
-    <span id="ph-title">Scegli l'opera</span>
-    <button id="ph-close" onclick="closePanel()">✕</button>
-  </div>
-  <div id="ph-sub">Seleziona il video da proiettare sulla superficie</div>
-  <div id="op-row">
-    <label>Opacità</label>
-    <input type="range" id="op-slider" min="10" max="100" value="85"
-      oninput="opacity=this.value/100;document.getElementById('op-val').textContent=this.value+'%'">
-    <span id="op-val">85%</span>
-  </div>
-  <div id="vid-list"></div>
-</div>
+    <script type="importmap">
+      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                     "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
 
-<script>
-// ── CATALOGUE ───────────────────────────────────────────────
-// Sostituisci gli URL con i file nella tua repo GitHub.
-// Es: url: 'videos/opera1.mp4'
-const ARTWORKS = [
-  {
-    id:'a1',
-    name:'Onde Luminose',
-    desc:'Pattern astratti in movimento — luce e colore fluido',
-    emoji:'🌊',
-    url:'https://cdn.pixabay.com/video/2020/07/22/45599-443568780_tiny.mp4'
-  },
-  {
-    id:'a2',
-    name:'Geometrie Urbane',
-    desc:'Forme geometriche che dialogano con l\'architettura',
-    emoji:'🔷',
-    url:'https://cdn.pixabay.com/video/2016/03/04/2373-157670935_tiny.mp4'
-  },
-  {
-    id:'a3',
-    name:'Fuoco e Cenere',
-    desc:'Texture organiche: fiamme, particelle e calore',
-    emoji:'🔥',
-    url:'https://cdn.pixabay.com/video/2020/04/16/36279-411246044_tiny.mp4'
-  }
-];
+    <script type="module">
+      import * as THREE from 'three';
+      import { ARButton } from 'three/addons/webxr/ARButton.js';
+      import { XRPlaneDetector } from 'three/addons/webxr/XRPlaneDetector.js';
 
-// ── STATE ───────────────────────────────────────────────────
-let camStream = null;
-let points = [];           // {x,y} in canvas px, max 4
-let dragging = null;
-let dragOff = {x:0,y:0};
-let artVideo = null;
-let selectedArt = ARTWORKS[0];
-let opacity = 0.85;
-let rafId = null;
+      let scene, camera, renderer, video, videoMesh;
+      let selectedPoints = [];
+      let planeDetector;
+      const raycaster = new THREE.Raycaster();
 
-const liveCam    = document.getElementById('live-cam');
-const phaseShoot = document.getElementById('phase-shoot');
-const phaseMap   = document.getElementById('phase-map');
-const photoBg    = document.getElementById('photo-bg');
-const canvas     = document.getElementById('proj-canvas');
-const ctx        = canvas.getContext('2d');
-const mapSvg     = document.getElementById('map-svg');
-const quadEl     = document.getElementById('quad');
-const ptsG       = document.getElementById('pts');
-const mapHint    = document.getElementById('map-hint');
-const btnVid     = document.getElementById('btn-vid');
-const panel      = document.getElementById('video-panel');
-const bk         = document.getElementById('backdrop');
-const vidList    = document.getElementById('vid-list');
+      async function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        document.body.appendChild(renderer.domElement);
 
-const HINTS = [
-  'Tocca il 1° angolo della superficie',
-  'Tocca il 2° angolo',
-  'Tocca il 3° angolo',
-  'Tocca il 4° angolo per chiudere',
-  'Trascina i punti per aggiustare ✓'
-];
-const COLS = ['#ff4444','#44aaff','#44ff88','#ffcc00'];
-const LBLS = ['A','B','C','D'];
+        // Attiva il plane detector per superfici verticali
+        planeDetector = new XRPlaneDetector({ world: scene });
+        scene.add(planeDetector);
 
-const cw = () => canvas.width;
-const ch = () => canvas.height;
+        // Luce (non necessaria per MeshBasicMaterial, ma utile per debug)
+        scene.add(new THREE.AmbientLight(0xffffff));
 
-// ── CAMERA ─────────────────────────────────────────────────
-async function initCamera(){
-  try{
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},
-      audio:false
-    });
-    liveCam.srcObject = camStream;
-  } catch(e){
-    document.getElementById('shoot-hint').textContent = '⚠ Camera non disponibile';
-    console.warn(e);
-  }
-}
-initCamera();
+        // Bottone per entrare in AR
+        document.getElementById('start-ar').addEventListener('click', () => {
+          navigator.xr.requestSession('immersive-ar', {
+            requiredFeatures: ['plane-detection', 'hit-test']
+          }).then(onSessionStarted);
+        });
 
-// ── SHOOT ──────────────────────────────────────────────────
-function shootPhoto(){
-  if(!camStream) return;
-  const tmp = document.createElement('canvas');
-  tmp.width  = liveCam.videoWidth  || window.innerWidth;
-  tmp.height = liveCam.videoHeight || window.innerHeight;
-  tmp.getContext('2d').drawImage(liveCam,0,0);
+        // Configura video
+        video = document.createElement('video');
+        video.src = 'videos/opera1.mp4';
+        video.loop = true;
+        video.muted = true;
+        video.play();
 
-  // Show map phase first so it has layout dimensions
-  phaseShoot.style.display = 'none';
-  phaseMap.style.display   = 'block';
+        renderer.setAnimationLoop(render);
+      }
 
-  photoBg.src = tmp.toDataURL('image/jpeg',0.92);
-  photoBg.onload = () => {
-    // Use canvas CSS rect for 1:1 coord mapping with getBoundingClientRect()
-    const r = canvas.getBoundingClientRect();
-    canvas.width  = Math.round(r.width);
-    canvas.height = Math.round(r.height);
-    // Stop camera to save battery
-    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-    points = [];
-    updateOverlay();
-    updateDots();
-    ctx.clearRect(0,0,cw(),ch());
-  };
-}
+      function onSessionStarted(session) {
+        renderer.xr.setSession(session);
+        const viewerSpace = session.viewerSpace;
+        const hitTestSource = session.requestHitTestSource({ space: viewerSpace });
 
-function retake(){
-  cancelAnimationFrame(rafId); rafId = null;
-  if(artVideo){artVideo.pause();artVideo=null;}
-  points = [];
-  phaseMap.style.display   = 'none';
-  phaseShoot.style.display = 'flex';
-  btnVid.style.display     = 'none';
-  mapHint.textContent      = HINTS[0];
-  initCamera();
-}
+        session.addEventListener('select', (event) => {
+          const frame = event.frame;
+          const hitTestResults = frame.getHitTestResults(hitTestSource);
+          if (hitTestResults.length > 0) {
+            const hitPose = hitTestResults[0].pose;
+            const point = new THREE.Vector3(
+              hitPose.transform.position.x,
+              hitPose.transform.position.y,
+              hitPose.transform.position.z
+            );
+            selectedPoints.push(point);
+            console.log(`Punto ${selectedPoints.length}:`, point);
 
-// ── POINT PLACEMENT ────────────────────────────────────────
-// touchHandled prevents the SVG background tap from firing
-// when a handle's own touchstart already consumed the event
-let touchHandled = false;
+            if (selectedPoints.length === 4) {
+              document.getElementById('confirm-points').style.display = 'block';
+            }
+          }
+        });
 
-mapSvg.addEventListener('touchstart', onSvgTouchStart, {passive:false});
-mapSvg.addEventListener('mousedown',  onSvgMouseDown);
-document.addEventListener('touchmove', onTouchMove, {passive:false});
-document.addEventListener('mousemove', onMouseMove);
-document.addEventListener('touchend',  onUp);
-document.addEventListener('mouseup',   onUp);
+        document.getElementById('confirm-points').addEventListener('click', () => {
+          createVideoQuad(selectedPoints);
+          document.getElementById('confirm-points').style.display = 'none';
+          selectedPoints = [];
+        });
 
-function svgCoord(e){
-  // Use canvas bounding rect so px coords map 1:1 with canvas internal size
-  const r = canvas.getBoundingClientRect();
-  const src = e.changedTouches ? e.changedTouches[0] : e;
-  return {
-    x: (src.clientX - r.left) * (cw() / r.width),
-    y: (src.clientY - r.top)  * (ch() / r.height)
-  };
-}
+        session.addEventListener('end', () => {
+          // Pulizia
+        });
+      }
 
-function nearestPt(pos, thresh){
-  // Bigger threshold on touch (44px finger zone)
-  const T = thresh !== undefined ? thresh : 44;
-  let best=-1, bd=T;
-  points.forEach((p,i)=>{
-    const d=Math.hypot(p.x-pos.x,p.y-pos.y);
-    if(d<bd){bd=d;best=i;}
-  });
-  return best;
-}
+      function createVideoQuad(points) {
+        // Assicurati che i punti siano co-planari (appartengano allo stesso piano verticale)
+        // Creazione della shape semplificata, assumendo siano ordinati
+        const shape = new THREE.Shape();
+        // Per semplicità proiettiamo i punti su un piano 2D (es. coordinate XZ se il muro è verticale)
+        // Qui serve un'elaborazione più robusta: calcola normale del piano, ruota, ecc.
+        // Per brevità mostro un approccio semplificato (solo per un muro frontale lungo l'asse XZ)
+        const center = new THREE.Vector3();
+        points.forEach(p => center.add(p));
+        center.divideScalar(4);
 
-function onSvgTouchStart(e){
-  if(touchHandled){ touchHandled=false; return; }
-  e.preventDefault();
-  const pos=svgCoord(e);
-  // Check nearness before adding
-  const n=nearestPt(pos);
-  if(n>=0){ startDrag(n,pos); return; }
-  if(points.length<4) addPoint(pos);
-}
-function onSvgMouseDown(e){
-  const pos=svgCoord(e);
-  const n=nearestPt(pos,28);
-  if(n>=0){ startDrag(n,pos); return; }
-  if(points.length<4) addPoint(pos);
-}
-function startDrag(i,pos){
-  dragging=i;
-  dragOff={x:pos.x-points[i].x, y:pos.y-points[i].y};
-}
-function onTouchMove(e){
-  if(dragging===null)return;
-  e.preventDefault();
-  movePt(svgCoord(e));
-}
-function onMouseMove(e){
-  if(dragging===null)return;
-  movePt(svgCoord(e));
-}
-function movePt(pos){
-  points[dragging]={
-    x:Math.max(0,Math.min(cw(),pos.x-dragOff.x)),
-    y:Math.max(0,Math.min(ch(),pos.y-dragOff.y))
-  };
-  updateOverlay(); draw();
-}
-function onUp(){dragging=null;}
+        // Crea una geometria planare sul piano locale XY e poi ruotala
+        const planeNormal = new THREE.Vector3(0, 0, 1); // ipotizzando normale uscente verso la camera
+        const quaternion = new THREE.Quaternion().setFromUnitVectors(
+          new THREE.Vector3(0, 0, 1),
+          planeNormal
+        );
 
-function addPoint(pos){
-  points.push(pos);
-  updateOverlay();
-  updateDots();
-  if(points.length===4){
-    mapHint.textContent = HINTS[4];
-    btnVid.style.display = 'flex';
-    loadArt(selectedArt);
-  } else {
-    mapHint.textContent = HINTS[points.length];
-  }
-  draw();
-}
+        // Trasforma i punti nello spazio locale del piano
+        const localPoints = points.map(p => p.clone().sub(center).applyQuaternion(quaternion.clone().invert()));
+        const shape2d = new THREE.Shape();
+        shape2d.moveTo(localPoints[0].x, localPoints[0].y);
+        shape2d.lineTo(localPoints[1].x, localPoints[1].y);
+        shape2d.lineTo(localPoints[2].x, localPoints[2].y);
+        shape2d.lineTo(localPoints[3].x, localPoints[3].y);
+        shape2d.closePath();
 
-function resetPoints(){
-  points=[];
-  cancelAnimationFrame(rafId); rafId=null;
-  if(artVideo){artVideo.pause();artVideo=null;}
-  btnVid.style.display='none';
-  mapHint.textContent=HINTS[0];
-  updateOverlay(); updateDots(); draw();
-}
+        const geometry = new THREE.ShapeGeometry(shape2d);
+        const texture = new THREE.VideoTexture(video);
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        videoMesh = new THREE.Mesh(geometry, material);
+        videoMesh.position.copy(center);
+        videoMesh.quaternion.copy(quaternion);
+        scene.add(videoMesh);
+      }
 
-// ── SVG OVERLAY ─────────────────────────────────────────────
-function updateOverlay(){
-  if(points.length>=2){
-    quadEl.setAttribute('points',points.map(p=>`${p.x},${p.y}`).join(' '));
-  } else {
-    quadEl.setAttribute('points','');
-  }
+      function render() {
+        renderer.render(scene, camera);
+      }
 
-  ptsG.innerHTML='';
-  points.forEach((p,i)=>{
-    const col=COLS[i];
-    const g=sEl('g');
-
-    // invisible large tap target
-    const tap=sEl('circle');
-    sAt(tap,{cx:p.x,cy:p.y,r:30,fill:'transparent'});
-
-    // outer glow ring
-    const ring=sEl('circle');
-    sAt(ring,{cx:p.x,cy:p.y,r:17,fill:col,'fill-opacity':'.15',
-      stroke:col,'stroke-width':'2',filter:'url(#fg)'});
-
-    // cross hairs
-    const h1=sEl('line'),h2=sEl('line');
-    sAt(h1,{x1:p.x-11,y1:p.y,x2:p.x+11,y2:p.y,stroke:col,'stroke-width':'1.5','stroke-opacity':'.7'});
-    sAt(h2,{x1:p.x,y1:p.y-11,x2:p.x,y2:p.y+11,stroke:col,'stroke-width':'1.5','stroke-opacity':'.7'});
-
-    // center dot
-    const dot=sEl('circle');
-    sAt(dot,{cx:p.x,cy:p.y,r:5,fill:col});
-
-    // label
-    const lbl=sEl('text');
-    sAt(lbl,{x:p.x+21,y:p.y-13,fill:col,'font-size':'11',
-      'font-weight':'700','font-family':'monospace'});
-    lbl.textContent=LBLS[i];
-
-    [tap,h1,h2,ring,dot,lbl].forEach(el=>g.appendChild(el));
-
-    // per-handle drag
-    g.addEventListener('touchstart',e=>{
-      e.preventDefault();e.stopPropagation();
-      startDrag(i,svgCoord(e));
-    },{passive:false});
-    g.addEventListener('mousedown',e=>{
-      e.stopPropagation();startDrag(i,svgCoord(e));
-    });
-
-    ptsG.appendChild(g);
-  });
-}
-
-function updateDots(){
-  for(let i=0;i<4;i++){
-    const d=document.getElementById(`d${i}`);
-    d.className='dot';
-    if(i<points.length) d.classList.add('done');
-    if(i===points.length&&points.length<4) d.classList.add('active');
-  }
-}
-
-function sEl(t){return document.createElementNS('http://www.w3.org/2000/svg',t);}
-function sAt(el,o){for(const k in o)el.setAttribute(k,o[k]);}
-
-// ── VIDEO PANEL ─────────────────────────────────────────────
-function buildPanel(){
-  vidList.innerHTML='';
-  ARTWORKS.forEach(art=>{
-    const c=document.createElement('div');
-    c.className='vcard'+(art.id===selectedArt.id?' sel':'');
-    c.innerHTML=`
-      <div class="vthumb">${art.emoji}</div>
-      <div class="vinfo">
-        <div class="vname">${art.name}</div>
-        <div class="vdesc">${art.desc}</div>
-      </div>
-      <div class="vcheck">${art.id===selectedArt.id?'✓':''}</div>`;
-    c.addEventListener('click',()=>selectArt(art));
-    vidList.appendChild(c);
-  });
-}
-
-function openPanel(){
-  buildPanel();
-  panel.style.display='flex';
-  bk.style.display='block';
-  requestAnimationFrame(()=>panel.classList.add('open'));
-}
-function closePanel(){
-  panel.classList.remove('open');
-  bk.style.display='none';
-  setTimeout(()=>panel.style.display='none',360);
-}
-function selectArt(art){
-  selectedArt=art;
-  buildPanel();
-  loadArt(art);
-  setTimeout(closePanel,220);
-}
-
-// ── ARTWORK LOADING ─────────────────────────────────────────
-function loadArt(art){
-  cancelAnimationFrame(rafId); rafId=null;
-  if(artVideo){artVideo.pause();artVideo.src='';artVideo=null;}
-  const v=document.createElement('video');
-  v.src=art.url; v.loop=true; v.muted=true; v.playsInline=true;
-  v.crossOrigin='anonymous';
-  v.addEventListener('canplay',()=>{
-    artVideo=v;
-    v.play().catch(()=>{});
-    renderLoop();
-  });
-  v.load();
-}
-
-// ── RENDER ──────────────────────────────────────────────────
-function draw(){
-  ctx.clearRect(0,0,cw(),ch());
-  if(artVideo && artVideo.readyState>=2 && points.length===4){
-    projectMesh(artVideo, artVideo.videoWidth||1, artVideo.videoHeight||1, points, opacity);
-  }
-}
-
-function renderLoop(){
-  draw();
-  rafId=requestAnimationFrame(renderLoop);
-}
-
-// ── PERSPECTIVE PROJECTION ───────────────────────────────────
-function projectMesh(src,sw,sh,dst,alpha){
-  const M=computeH(
-    [{x:0,y:0},{x:sw,y:0},{x:sw,y:sh},{x:0,y:sh}],
-    dst
-  );
-  if(!M) return;
-  const S=28;
-  ctx.save();
-  ctx.globalAlpha=alpha;
-  for(let vi=0;vi<S;vi++){
-    for(let ui=0;ui<S;ui++){
-      const u0=ui/S,u1=(ui+1)/S,v0=vi/S,v1=(vi+1)/S;
-      const c=[
-        apH(M,u0*sw,v0*sh), apH(M,u1*sw,v0*sh),
-        apH(M,u1*sw,v1*sh), apH(M,u0*sw,v1*sh)
-      ];
-      const pw=Math.hypot(c[1].x-c[0].x,c[1].y-c[0].y);
-      const ph=Math.hypot(c[3].x-c[0].x,c[3].y-c[0].y);
-      if(pw<0.4||ph<0.4) continue;
-      const ang=Math.atan2(c[1].y-c[0].y,c[1].x-c[0].x);
-      const angV=Math.atan2(c[3].y-c[0].y,c[3].x-c[0].x);
-      const skew=Math.tan(angV-ang-Math.PI/2);
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(c[0].x,c[0].y);
-      ctx.lineTo(c[1].x,c[1].y);
-      ctx.lineTo(c[2].x,c[2].y);
-      ctx.lineTo(c[3].x,c[3].y);
-      ctx.closePath();
-      ctx.clip();
-      ctx.translate(c[0].x,c[0].y);
-      ctx.rotate(ang);
-      ctx.transform(1,0,isFinite(skew)?skew:0,ph/((v1-v0)*sh||1),0,0);
-      ctx.drawImage(src,u0*sw,v0*sh,(u1-u0)*sw,(v1-v0)*sh,0,0,pw+1,ph+1);
-      ctx.restore();
-    }
-  }
-  ctx.restore();
-}
-
-// ── HOMOGRAPHY ───────────────────────────────────────────────
-function computeH(src,dst){
-  const A=[];
-  for(let i=0;i<4;i++){
-    const{x:sx,y:sy}=src[i],{x:dx,y:dy}=dst[i];
-    A.push([-sx,-sy,-1,0,0,0,sx*dx,sy*dx,dx]);
-    A.push([0,0,0,-sx,-sy,-1,sx*dy,sy*dy,dy]);
-  }
-  const h=nullVec(A);
-  return[[h[0],h[1],h[2]],[h[3],h[4],h[5]],[h[6],h[7],h[8]]];
-}
-function apH(M,x,y){
-  const w=M[2][0]*x+M[2][1]*y+M[2][2];
-  return{x:(M[0][0]*x+M[0][1]*y+M[0][2])/w,
-         y:(M[1][0]*x+M[1][1]*y+M[1][2])/w};
-}
-function nullVec(A){
-  const n=9,m=A.length;
-  const B=Array.from({length:n},()=>new Array(n).fill(0));
-  for(let i=0;i<m;i++) for(let j=0;j<n;j++) for(let k=0;k<n;k++) B[j][k]+=A[i][j]*A[i][k];
-  let lmax=0; for(let i=0;i<n;i++) lmax+=Math.abs(B[i][i]);
-  const C=B.map((r,i)=>r.map((v,j)=>i===j?lmax-v:-v));
-  let v=Array.from({length:n},(_,i)=>i===n-1?1:0);
-  for(let it=0;it<300;it++){
-    const nv=new Array(n).fill(0);
-    for(let i=0;i<n;i++) for(let j=0;j<n;j++) nv[i]+=C[i][j]*v[j];
-    const norm=Math.sqrt(nv.reduce((s,x)=>s+x*x,0));
-    if(norm<1e-14) break;
-    v=nv.map(x=>x/norm);
-  }
-  return v;
-}
-</script>
-</body>
+      init();
+    </script>
+  </body>
 </html>
