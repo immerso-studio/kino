@@ -69,11 +69,14 @@ html,body{
   position:absolute;inset:0;
   width:100%;height:100%;
   pointer-events:none;
+  z-index:1;
 }
 #map-svg{
   position:absolute;inset:0;
   width:100%;height:100%;
   touch-action:none;
+  z-index:2;
+  cursor:crosshair;
 }
 
 /* top bar */
@@ -391,16 +394,18 @@ function shootPhoto(){
   tmp.height = liveCam.videoHeight || window.innerHeight;
   tmp.getContext('2d').drawImage(liveCam,0,0);
 
+  // Show map phase first so it has layout dimensions
+  phaseShoot.style.display = 'none';
+  phaseMap.style.display   = 'block';
+
   photoBg.src = tmp.toDataURL('image/jpeg',0.92);
   photoBg.onload = () => {
-    const r = phaseMap.getBoundingClientRect();
-    canvas.width  = r.width;
-    canvas.height = r.height;
-    phaseShoot.style.display = 'none';
-    phaseMap.style.display   = 'block';
-    // stop camera to save battery
-    camStream.getTracks().forEach(t=>t.stop());
-    camStream = null;
+    // Use canvas CSS rect for 1:1 coord mapping with getBoundingClientRect()
+    const r = canvas.getBoundingClientRect();
+    canvas.width  = Math.round(r.width);
+    canvas.height = Math.round(r.height);
+    // Stop camera to save battery
+    if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
     points = [];
     updateOverlay();
     updateDots();
@@ -420,15 +425,20 @@ function retake(){
 }
 
 // ── POINT PLACEMENT ────────────────────────────────────────
-mapSvg.addEventListener('touchstart', onTouchStart, {passive:false});
-mapSvg.addEventListener('mousedown',  onMouseDown);
+// touchHandled prevents the SVG background tap from firing
+// when a handle's own touchstart already consumed the event
+let touchHandled = false;
+
+mapSvg.addEventListener('touchstart', onSvgTouchStart, {passive:false});
+mapSvg.addEventListener('mousedown',  onSvgMouseDown);
 document.addEventListener('touchmove', onTouchMove, {passive:false});
 document.addEventListener('mousemove', onMouseMove);
 document.addEventListener('touchend',  onUp);
 document.addEventListener('mouseup',   onUp);
 
 function svgCoord(e){
-  const r = mapSvg.getBoundingClientRect();
+  // Use canvas bounding rect so px coords map 1:1 with canvas internal size
+  const r = canvas.getBoundingClientRect();
   const src = e.changedTouches ? e.changedTouches[0] : e;
   return {
     x: (src.clientX - r.left) * (cw() / r.width),
@@ -436,8 +446,10 @@ function svgCoord(e){
   };
 }
 
-function nearestPt(pos, thresh=40){
-  let best=-1, bd=thresh;
+function nearestPt(pos, thresh){
+  // Bigger threshold on touch (44px finger zone)
+  const T = thresh !== undefined ? thresh : 44;
+  let best=-1, bd=T;
   points.forEach((p,i)=>{
     const d=Math.hypot(p.x-pos.x,p.y-pos.y);
     if(d<bd){bd=d;best=i;}
@@ -445,17 +457,19 @@ function nearestPt(pos, thresh=40){
   return best;
 }
 
-function onTouchStart(e){
+function onSvgTouchStart(e){
+  if(touchHandled){ touchHandled=false; return; }
   e.preventDefault();
   const pos=svgCoord(e);
+  // Check nearness before adding
   const n=nearestPt(pos);
-  if(n>=0){startDrag(n,pos);return;}
+  if(n>=0){ startDrag(n,pos); return; }
   if(points.length<4) addPoint(pos);
 }
-function onMouseDown(e){
+function onSvgMouseDown(e){
   const pos=svgCoord(e);
-  const n=nearestPt(pos,24);
-  if(n>=0){startDrag(n,pos);return;}
+  const n=nearestPt(pos,28);
+  if(n>=0){ startDrag(n,pos); return; }
   if(points.length<4) addPoint(pos);
 }
 function startDrag(i,pos){
