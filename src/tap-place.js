@@ -8,6 +8,7 @@ export const tapPlaceComponent = {
   init() {
     const ground = document.getElementById('ground')
     this.prompt = document.getElementById('promptText')
+    this.toggle = false
 
     ground.addEventListener('click', (event) => {
       // Dismiss the prompt text.
@@ -23,8 +24,6 @@ export const tapPlaceComponent = {
       const randomYRotation = Math.random() * 360
       newElement.setAttribute('rotation', `0 ${randomYRotation} 0`)
 
-      const randomScale = Math.floor(Math.random() * (Math.floor(this.data.max) - Math.ceil(this.data.min)) + Math.ceil(this.data.min))
-
       newElement.setAttribute('visible', 'false')
       newElement.setAttribute('scale', '0.0001 0.0001 0.0001')
 
@@ -32,7 +31,11 @@ export const tapPlaceComponent = {
         receive: false,
       })
 
-      newElement.setAttribute('gltf-model', '#chessModel')
+      // Alternate models
+      const modelId = this.toggle ? '#model2' : '#model1'
+      this.toggle = !this.toggle
+
+      newElement.setAttribute('gltf-model', modelId)
       this.el.sceneEl.appendChild(newElement)
 
       newElement.addEventListener('model-loaded', () => {
@@ -40,7 +43,7 @@ export const tapPlaceComponent = {
         newElement.setAttribute('visible', 'true')
         newElement.setAttribute('animation', {
           property: 'scale',
-          to: `${randomScale} ${randomScale} ${randomScale}`,
+          to: '1 1 1',
           easing: 'easeOutElastic',
           dur: 800,
         })
