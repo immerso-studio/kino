@@ -1,20 +1,58 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A-Frame: Tap to Place Ground</title><meta itemprop="name" content="A-Frame: Tap to Place Ground"><meta name="twitter:title" content="A-Frame: Tap to Place Ground"><meta property="og:title" content="A-Frame: Tap to Place Ground"><meta property="og:site_name" content="A-Frame: Tap to Place Ground"><meta name="description" content="This example allows the user to grow cacti 🌵  by tapping or clicking the ground. Showcases raycasting, spawning objects, and importing a 3D model."><meta itemprop="description" content="This example allows the user to grow cacti 🌵  by tapping or clicking the ground. Showcases raycasting, spawning objects, and importing a 3D model."><meta property="og:description" content="This example allows the user to grow cacti 🌵  by tapping or clicking the ground. Showcases raycasting, spawning objects, and importing a 3D model."><meta name="twitter:description" content="This example allows the user to grow cacti 🌵  by tapping or clicking the ground. Showcases raycasting, spawning objects, and importing a 3D model."><meta property="og:image" content="https://8thwall.org/aframe-world-effects/assets/preview.gif"/><script crossorigin="anonymous" src="./external/scripts/8frame-1.5.0.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" crossorigin="anonymous" async="true" data-preload-chunks="slam"></script></head><body><script src="bundle.js"></script><div class="over"><span id="promptText">Tap To Place Model</span></div><a-scene tap-place landing-page xrextras-loading xrextras-runtime-error renderer="colorManagement:true" xrweb="
-    allowedDevices: any;
-    defaultEnvironmentFogIntensity: 0.5; 
-    defaultEnvironmentFloorTexture: #groundTex; 
-    defaultEnvironmentFloorColor: #FFF;
-    defaultEnvironmentSkyBottomColor: #B4C4CC; 
-    defaultEnvironmentSkyTopColor: #5ac8fa;
-    defaultEnvironmentSkyGradientStrength: 0.5;"><a-assets><img id="groundTex" src="assets/sand.jpg"><a-asset-item id="cactusModel" src="assets/cactus.glb"></a-asset-item></a-assets><a-camera id="camera" position="0 8 8" raycaster="objects: .cantap" cursor="
-      fuse: false;
-      rayOrigin: mouse;"></a-camera><a-entity light="
-      type: directional;
-      intensity: 0.8;
-      castShadow: true;
-      shadowMapHeight:2048;
-      shadowMapWidth:2048;
-      shadowCameraTop: 40;
-      shadowCameraBottom: -40;
-      shadowCameraRight: 40;
-      shadowCameraLeft: -40;
-      target: #camera" xrextras-attach="target: camera; offset: 8 15 4" position="1 4.3 2.5" shadow></a-entity><a-light type="ambient" intensity="0.5"></a-light><a-box id="ground" class="cantap" scale="1000 2 1000" position="0 -0.99 0" material="shader: shadow; transparent: true; opacity: 0.4" shadow></a-box></a-scene></body></html>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Immerso Studio - Kino AR</title>
+
+    <!-- Librerie Open Source: A-Frame e il nuovo motore 8th Wall XR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.6.0/aframe-master.min.js"></script>
+    <script src="https://cdn.8thwall.org/web/xrextras/xrextras.js"></script>
+    <script src="https://cdn.8thwall.org/web/aframe/8thwall-aframe.js"></script>
+
+    <!-- Includiamo i componenti javascript del tuo progetto -->
+    <script src="./src/components.js"></script>
+  </head>
+
+  <body>
+    <!-- Setup della scena AR secondo gli standard 8th Wall open-source -->
+    <a-scene
+      xrweb
+      xrextras-gesture-detector
+      xrextras-loading
+      xrextras-runtime-error>
+
+      <a-assets>
+        <!-- Qui dentro caricherai i tuoi modelli 3D in futuro -->
+      </a-assets>
+
+      <a-camera
+        id="camera"
+        position="0 8 8"
+        raycaster="objects: .cantap"
+        cursor="fuse: false; rayOrigin: mouse;">
+      </a-camera>
+
+      <a-entity
+        light="type: directional; castShadow: true; intensity: 0.8;"
+        position="1 4 3">
+      </a-entity>
+
+      <a-light type="ambient" intensity="0.7"></a-light>
+
+      <!-- Il terreno interattivo che intercetta il tocco per posizionare gli oggetti -->
+      <a-entity
+        xrextras-named-named-surface
+        xrextras-one-finger-rotate
+        xrextras-two-finger-scale>
+        
+        <!-- Un cubo di test per verificare che l'AR funzioni senza l'errore AFRAME -->
+        <a-box 
+          position="0 0.5 0" 
+          material="color: #00FFCC;" 
+          shadow>
+        </a-box>
+      </a-entity>
+
+    </a-scene>
+  </body>
+</html>
