@@ -5,28 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0612" />
   <title>Alice — AR Experience</title>
-
-  <!-- Model Viewer for 3D preview + AR fallback -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Libre+Barcode+39+Text&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --void: #0b0612;
-      --deep: #110d1f;
-      --surface: #1a1330;
-      --purple-mist: #4a2d7a;
       --gold: #c9a84c;
-      --gold-dim: rgba(201,168,76,0.18);
+      --gold-dim: rgba(201,168,76,0.15);
       --rose: #c94c7a;
       --teal: #4cc9b0;
       --cream: #f0e8d8;
       --muted: rgba(240,232,216,0.45);
-      --glass: rgba(26,19,48,0.7);
-      --glass-border: rgba(201,168,76,0.2);
+      --glass: rgba(11,6,18,0.75);
+      --glass-border: rgba(201,168,76,0.18);
     }
 
     html, body {
@@ -36,1053 +33,834 @@
       font-family: 'Space Mono', monospace;
       color: var(--cream);
       -webkit-font-smoothing: antialiased;
+      touch-action: none;
     }
 
-    /* ── Animated bg ── */
-    .bg-scene {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      overflow: hidden;
-    }
-
-    .bg-scene::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 70% 50% at 30% 20%, rgba(74,45,122,0.5) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 60% at 80% 70%, rgba(201,76,122,0.15) 0%, transparent 55%),
-        radial-gradient(ellipse 80% 40% at 50% 100%, rgba(76,201,176,0.08) 0%, transparent 50%),
-        linear-gradient(180deg, #0b0612 0%, #110d1f 50%, #0d0918 100%);
-    }
-
-    /* Floating particles */
-    .particle {
-      position: absolute;
-      border-radius: 50%;
-      pointer-events: none;
-      animation: float-up linear infinite;
-      opacity: 0;
-    }
-
-    @keyframes float-up {
-      0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
-      10%  { opacity: 1; }
-      90%  { opacity: 0.3; }
-      100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
-    }
-
-    /* Stars grid */
-    .stars {
-      position: absolute;
-      inset: 0;
-      background-image:
-        radial-gradient(1px 1px at 20% 30%, rgba(201,168,76,0.6) 0%, transparent 100%),
-        radial-gradient(1px 1px at 60% 10%, rgba(240,232,216,0.5) 0%, transparent 100%),
-        radial-gradient(1px 1px at 80% 50%, rgba(201,168,76,0.4) 0%, transparent 100%),
-        radial-gradient(1px 1px at 10% 70%, rgba(76,201,176,0.5) 0%, transparent 100%),
-        radial-gradient(1px 1px at 45% 80%, rgba(240,232,216,0.4) 0%, transparent 100%),
-        radial-gradient(1px 1px at 90% 25%, rgba(201,76,122,0.5) 0%, transparent 100%),
-        radial-gradient(1.5px 1.5px at 35% 55%, rgba(201,168,76,0.7) 0%, transparent 100%),
-        radial-gradient(1px 1px at 70% 90%, rgba(240,232,216,0.3) 0%, transparent 100%);
-    }
-
-    /* ── Model Viewer (3D preview) ── */
-    model-viewer {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      --poster-color: transparent;
-      z-index: 1;
-    }
-    model-viewer::part(default-ar-button) { display: none; }
-
-    /* ── Top bar ── */
-    .top-bar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 20;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: max(env(safe-area-inset-top), 16px) 20px 16px;
-    }
-
-    .brand {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .brand-title {
-      font-family: 'IM Fell English', serif;
-      font-style: italic;
-      font-size: 22px;
-      color: var(--gold);
-      letter-spacing: 0.02em;
-      line-height: 1;
-      text-shadow: 0 0 30px rgba(201,168,76,0.5);
-    }
-
-    .brand-sub {
-      font-size: 7px;
-      letter-spacing: 0.35em;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-
-    .tag {
-      font-size: 8px;
-      letter-spacing: 0.25em;
-      color: rgba(201,168,76,0.6);
-      text-transform: uppercase;
-      border: 0.5px solid var(--glass-border);
-      padding: 5px 10px;
-      border-radius: 1px;
-      background: var(--glass);
-      backdrop-filter: blur(8px);
-    }
-
-    /* ── AR Status indicator ── */
-    .ar-status {
-      position: fixed;
-      top: max(env(safe-area-inset-top), 16px);
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 25;
-      font-size: 8px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--teal);
-      background: rgba(76,201,176,0.08);
-      border: 0.5px solid rgba(76,201,176,0.25);
-      padding: 5px 12px;
-      border-radius: 1px;
-      backdrop-filter: blur(8px);
-      display: none;
-    }
-    .ar-status.visible { display: block; }
-    .ar-status.localized {
-      color: var(--gold);
-      background: rgba(201,168,76,0.08);
-      border-color: rgba(201,168,76,0.25);
-    }
-    .ar-status.error {
-      color: var(--rose);
-      background: rgba(201,76,122,0.08);
-      border-color: rgba(201,76,122,0.25);
-    }
-
-    /* ── Main AR Button ── */
-    .ar-launch-btn {
-      position: fixed;
-      bottom: 130px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      background: transparent;
-      border: 0.5px solid var(--gold);
-      color: var(--gold);
-      padding: 16px 36px;
-      font-family: 'Space Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 1px;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 0 40px rgba(201,168,76,0.1), inset 0 0 40px rgba(201,168,76,0.03);
-    }
-
-    .ar-launch-btn:hover, .ar-launch-btn:active {
-      background: rgba(201,168,76,0.08);
-      box-shadow: 0 0 60px rgba(201,168,76,0.2);
-    }
-
-    .ar-launch-btn .btn-icon {
-      width: 14px; height: 14px;
-      flex-shrink: 0;
-    }
-
-    /* ── Immersal VPS Button ── */
-    .immersal-btn {
-      position: fixed;
-      bottom: 72px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      background: transparent;
-      border: 0.5px solid rgba(76,201,176,0.5);
-      color: var(--teal);
-      padding: 12px 28px;
-      font-family: 'Space Mono', monospace;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 1px;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(12px);
-    }
-
-    .immersal-btn:hover {
-      background: rgba(76,201,176,0.08);
-    }
-
-    .immersal-btn .pulse-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--teal);
-      animation: pulse 1.8s ease infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.3; transform: scale(0.6); }
-    }
-
-    /* Hide both buttons on desktop */
-    @media (hover: hover) and (pointer: fine) {
-      .ar-launch-btn,
-      .immersal-btn { display: none !important; }
-      .desktop-note { display: flex !important; }
-    }
-
-    /* ── Desktop note ── */
-    .desktop-note {
-      display: none;
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-      text-transform: uppercase;
-      text-align: center;
-      border: 0.5px solid var(--glass-border);
-      padding: 20px 32px;
-      background: var(--glass);
-      backdrop-filter: blur(8px);
-    }
-
-    .desktop-note strong {
-      color: var(--gold);
-      font-size: 11px;
-      letter-spacing: 0.1em;
-    }
-
-    /* ── Loading overlay ── */
-    .loading-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
+    /* SCHERMATA 1 — INTRO */
+    #screen-intro {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       background: var(--void);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 28px;
-      transition: opacity 0.8s ease;
     }
 
-    .loading-overlay.fade-out { opacity: 0; pointer-events: none; }
-
-    .loading-title {
-      font-family: 'IM Fell English', serif;
-      font-style: italic;
-      font-size: clamp(36px, 10vw, 60px);
-      color: var(--gold);
-      text-shadow: 0 0 60px rgba(201,168,76,0.4);
-      letter-spacing: 0.04em;
-      animation: flicker 3s ease infinite;
+    .intro-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 30% 25%, rgba(74,45,122,0.55) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 75% 70%, rgba(201,76,122,0.12) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 50% 105%, rgba(76,201,176,0.07) 0%, transparent 50%);
     }
 
-    @keyframes flicker {
-      0%, 96%, 100% { opacity: 1; }
-      97% { opacity: 0.7; }
-      98% { opacity: 1; }
-      99% { opacity: 0.85; }
+    .stars {
+      position: absolute; inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 15% 20%, rgba(201,168,76,0.7) 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 8%,  rgba(240,232,216,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 82% 45%, rgba(201,168,76,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 8%  65%, rgba(76,201,176,0.6) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 40% 78%, rgba(201,168,76,0.8) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 22%, rgba(201,76,122,0.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 65% 88%, rgba(240,232,216,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 28% 52%, rgba(201,168,76,0.5) 0%, transparent 100%);
     }
 
-    .loading-sub {
-      font-size: 8px;
-      letter-spacing: 0.35em;
-      color: var(--muted);
-      text-transform: uppercase;
+    .intro-content {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 10px;
+      padding: 0 32px;
+      animation: fadeUp 1.2s cubic-bezier(0.16,1,0.3,1) both;
     }
 
-    .loading-line {
-      width: 80px; height: 0.5px;
-      background: rgba(201,168,76,0.15);
-      position: relative; overflow: hidden;
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .loading-progress {
-      position: absolute;
-      top: 0; left: -100%;
-      width: 100%; height: 100%;
-      background: var(--gold);
-      animation: sweep 1.8s ease infinite;
+    .intro-eyebrow {
+      font-size: 8px; letter-spacing: 0.4em;
+      color: var(--muted); text-transform: uppercase;
     }
 
-    @keyframes sweep {
-      0%   { left: -100%; }
-      100% { left: 100%; }
-    }
-
-    /* ── Info panel ── */
-    .info-panel {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 30;
-      background: var(--glass);
-      backdrop-filter: blur(28px) saturate(180%);
-      -webkit-backdrop-filter: blur(28px) saturate(180%);
-      border-top: 0.5px solid var(--glass-border);
-      padding: 28px 24px;
-      padding-bottom: max(env(safe-area-inset-bottom), 24px);
-      transform: translateY(100%);
-      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .info-panel.open { transform: translateY(0); }
-
-    .panel-drag {
-      width: 32px; height: 3px;
-      background: rgba(201,168,76,0.2);
-      border-radius: 2px;
-      margin: 0 auto 24px;
-    }
-
-    .panel-close {
-      position: absolute;
-      top: 20px; right: 20px;
-      background: none; border: none;
-      color: var(--muted);
-      font-size: 20px;
-      cursor: pointer;
-      font-family: 'IM Fell English', serif;
-    }
-
-    .event-title {
-      font-family: 'IM Fell English', serif;
-      font-style: italic;
-      font-size: clamp(24px, 6vw, 34px);
-      color: var(--gold);
-      line-height: 1.1;
-      margin-bottom: 6px;
-      text-shadow: 0 0 20px rgba(201,168,76,0.3);
-    }
-
-    .event-sub {
-      font-size: 8px;
-      letter-spacing: 0.25em;
-      color: var(--muted);
-      text-transform: uppercase;
-      margin-bottom: 20px;
-    }
-
-    .sep {
-      height: 0.5px;
-      background: var(--glass-border);
-      margin-bottom: 18px;
-    }
-
-    .event-desc {
-      font-family: 'IM Fell English', serif;
-      font-style: italic;
-      font-size: 15px;
-      line-height: 1.7;
-      color: rgba(240,232,216,0.7);
-      margin-bottom: 20px;
-    }
-
-    .chips {
-      display: flex; gap: 8px; flex-wrap: wrap;
-    }
-
-    .chip {
-      font-size: 8px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      border: 0.5px solid var(--glass-border);
-      color: var(--muted);
-      padding: 5px 10px;
-      border-radius: 1px;
-    }
-
-    .chip.gold {
-      border-color: rgba(201,168,76,0.3);
-      color: rgba(201,168,76,0.7);
-    }
-
-    /* ── Info toggle ── */
-    .info-toggle {
-      position: fixed;
-      bottom: 28px;
-      right: 20px;
-      z-index: 20;
-      background: var(--glass);
-      border: 0.5px solid var(--glass-border);
-      color: var(--muted);
-      padding: 9px 16px;
-      font-family: 'Space Mono', monospace;
-      font-size: 8px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 1px;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: none;
-    }
-
-    /* ── Camera capture overlay ── */
-    .camera-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 50;
-      background: rgba(11,6,18,0.92);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      display: none;
-    }
-
-    .camera-overlay.visible { display: flex; }
-
-    .camera-frame {
-      width: min(280px, 80vw);
-      height: min(280px, 80vw);
-      border: 0.5px solid var(--teal);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .camera-frame video {
-      width: 100%; height: 100%;
-      object-fit: cover;
-    }
-
-    .camera-frame canvas { display: none; }
-
-    .camera-corners::before,
-    .camera-corners::after {
-      content: '';
-      position: absolute;
-      width: 20px; height: 20px;
-    }
-
-    .camera-scan-line {
-      position: absolute;
-      left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--teal), transparent);
-      animation: scan 2s ease-in-out infinite;
-    }
-
-    @keyframes scan {
-      0%   { top: 0; opacity: 1; }
-      50%  { opacity: 0.5; }
-      100% { top: 100%; opacity: 1; }
-    }
-
-    .camera-label {
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      color: var(--teal);
-      text-transform: uppercase;
+    .intro-title {
+      font-family: 'IM Fell English', serif; font-style: italic;
+      font-size: clamp(60px, 20vw, 96px);
+      color: var(--gold); line-height: 0.9;
       text-align: center;
+      text-shadow: 0 0 80px rgba(201,168,76,0.35);
     }
 
-    .camera-cancel {
-      background: none;
-      border: 0.5px solid rgba(201,76,122,0.4);
-      color: var(--rose);
-      padding: 10px 24px;
+    .intro-subtitle {
+      font-family: 'IM Fell English', serif; font-style: italic;
+      font-size: 15px; color: rgba(240,232,216,0.5);
+      text-align: center; margin-top: 4px;
+    }
+
+    .intro-divider {
+      width: 40px; height: 0.5px;
+      background: var(--gold-dim); margin: 16px 0;
+    }
+
+    .intro-instruction {
+      font-size: 9px; letter-spacing: 0.18em;
+      color: rgba(240,232,216,0.35); text-transform: uppercase;
+      text-align: center; line-height: 1.9;
+    }
+
+    .intro-cta {
+      margin-top: 44px;
+      background: transparent; border: 0.5px solid var(--gold);
+      color: var(--gold); padding: 18px 52px;
       font-family: 'Space Mono', monospace;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 1px;
+      font-size: 10px; letter-spacing: 0.3em;
+      text-transform: uppercase; cursor: pointer; border-radius: 1px;
+      transition: all 0.3s;
+      box-shadow: 0 0 40px rgba(201,168,76,0.08);
     }
 
-    /* ── Hint ── */
-    .hint {
-      position: fixed;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 8px;
-      letter-spacing: 0.2em;
-      color: rgba(240,232,216,0.2);
-      text-transform: uppercase;
-      z-index: 10;
+    .intro-cta:active {
+      background: rgba(201,168,76,0.08);
+      box-shadow: 0 0 60px rgba(201,168,76,0.18);
     }
 
-    /* ── Decorative ornament ── */
-    .ornament {
-      position: fixed;
+    .desktop-note {
+      display: none; position: absolute; bottom: 40px;
+      left: 50%; transform: translateX(-50%);
+      font-size: 8px; letter-spacing: 0.2em;
+      color: var(--muted); text-transform: uppercase; text-align: center;
+      border: 0.5px solid var(--glass-border); padding: 16px 28px;
+      background: var(--glass); backdrop-filter: blur(8px); white-space: nowrap;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .desktop-note { display: block; }
+      .intro-cta    { display: none; }
+    }
+
+    /* SCHERMATA 2 — SCAN */
+    #screen-scan {
+      position: fixed; inset: 0; z-index: 10;
+      display: none; background: #000;
+    }
+
+    #scan-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover;
+    }
+
+    #scan-canvas { display: none; }
+
+    .scan-ui {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: space-between;
+      padding: max(env(safe-area-inset-top),28px) 24px max(env(safe-area-inset-bottom),36px);
       pointer-events: none;
-      z-index: 2;
-      opacity: 0.06;
-      font-family: 'IM Fell English', serif;
-      color: var(--gold);
-      user-select: none;
     }
 
-    .ornament-tl {
-      top: 12%; left: 5%;
-      font-size: 120px;
-      transform: rotate(-15deg);
+    .scan-header {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
     }
 
-    .ornament-br {
-      bottom: 15%; right: 3%;
-      font-size: 80px;
-      transform: rotate(20deg);
+    .scan-brand {
+      font-family: 'IM Fell English', serif; font-style: italic;
+      font-size: 22px; color: var(--gold);
+      text-shadow: 0 0 20px rgba(201,168,76,0.5);
     }
 
-    /* ── Localization result toast ── */
-    .toast {
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-10px);
-      z-index: 40;
-      background: var(--glass);
-      border: 0.5px solid var(--glass-border);
-      backdrop-filter: blur(16px);
-      padding: 10px 20px;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      color: var(--cream);
-      text-transform: uppercase;
-      opacity: 0;
-      transition: all 0.4s ease;
-      pointer-events: none;
-      white-space: nowrap;
+    .scan-label {
+      font-size: 8px; letter-spacing: 0.3em;
+      color: rgba(255,255,255,0.45); text-transform: uppercase;
     }
 
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
+    .scan-frame-wrap {
+      flex: 1; display: flex; align-items: center; justify-content: center; width: 100%;
     }
 
-    .toast.success { border-color: rgba(76,201,176,0.3); color: var(--teal); }
-    .toast.fail    { border-color: rgba(201,76,122,0.3); color: var(--rose); }
+    .scan-frame {
+      width: min(260px, 70vw); height: min(260px, 70vw); position: relative;
+    }
+
+    .scan-corner {
+      position: absolute; width: 24px; height: 24px;
+      border-color: var(--gold); border-style: solid;
+    }
+
+    .scan-corner.tl { top:0; left:0;      border-width: 1.5px 0 0 1.5px; }
+    .scan-corner.tr { top:0; right:0;     border-width: 1.5px 1.5px 0 0; }
+    .scan-corner.bl { bottom:0; left:0;   border-width: 0 0 1.5px 1.5px; }
+    .scan-corner.br { bottom:0; right:0;  border-width: 0 1.5px 1.5px 0; }
+
+    .scan-line {
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--teal) 30%, rgba(255,255,255,0.9) 50%, var(--teal) 70%, transparent 100%);
+      box-shadow: 0 0 8px var(--teal);
+      animation: scanline 2s ease-in-out infinite;
+    }
+
+    @keyframes scanline {
+      0%   { top: 0;    opacity: 0.8; }
+      50%  { opacity: 1; }
+      100% { top: 100%; opacity: 0.8; }
+    }
+
+    .scan-bottom {
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      pointer-events: all;
+    }
+
+    .scan-status-box {
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(12px);
+      border: 0.5px solid rgba(255,255,255,0.1);
+      padding: 14px 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+
+    .scan-status-text {
+      font-size: 10px; letter-spacing: 0.2em;
+      color: var(--teal); text-transform: uppercase; transition: color 0.4s;
+    }
+
+    .scan-status-text.fail    { color: var(--rose); }
+    .scan-status-text.success { color: var(--gold); }
+
+    .scan-dots { display: flex; gap: 6px; }
+
+    .scan-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(76,201,176,0.2); transition: background 0.3s;
+    }
+
+    .scan-dot.active  { background: var(--teal); }
+    .scan-dot.success { background: var(--gold); }
+    .scan-dot.fail    { background: rgba(201,76,122,0.5); }
+
+    .scan-attempts {
+      font-size: 8px; letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.3); text-transform: uppercase; text-align: center;
+    }
+
+    .scan-cancel {
+      background: none; border: 0.5px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.4); padding: 10px 28px;
+      font-family: 'Space Mono', monospace;
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;
+    }
+
+    /* SCHERMATA 3 — FOUND */
+    #screen-found {
+      position: fixed; inset: 0; z-index: 10;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--void);
+    }
+
+    .found-bg {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 55% at 50% 50%, rgba(201,168,76,0.1) 0%, transparent 70%);
+    }
+
+    .found-content {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      padding: 0 32px; text-align: center;
+    }
+
+    .found-icon {
+      font-size: 42px; margin-bottom: 6px;
+      animation: scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+
+    @keyframes scaleIn {
+      from { opacity:0; transform: scale(0.4); }
+      to   { opacity:1; transform: scale(1); }
+    }
+
+    .found-title {
+      font-family: 'IM Fell English', serif; font-style: italic;
+      font-size: clamp(28px, 8vw, 44px); color: var(--gold);
+      text-shadow: 0 0 40px rgba(201,168,76,0.4);
+      animation: fadeUp 0.6s 0.15s both;
+    }
+
+    .found-sub {
+      font-size: 9px; letter-spacing: 0.25em;
+      color: var(--muted); text-transform: uppercase;
+      animation: fadeUp 0.6s 0.25s both;
+    }
+
+    .found-coords {
+      margin-top: 14px; background: rgba(201,168,76,0.05);
+      border: 0.5px solid var(--glass-border); padding: 14px 22px;
+      font-size: 9px; letter-spacing: 0.1em; color: rgba(201,168,76,0.55);
+      line-height: 2; animation: fadeUp 0.6s 0.3s both;
+    }
+
+    .found-enter-btn {
+      margin-top: 36px; background: var(--gold); border: none;
+      color: #0a0810; padding: 20px 60px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+      cursor: pointer; border-radius: 1px;
+      box-shadow: 0 0 60px rgba(201,168,76,0.22);
+      animation: fadeUp 0.6s 0.4s both; transition: all 0.2s;
+    }
+
+    .found-enter-btn:active {
+      transform: scale(0.97);
+    }
+
+    .found-note {
+      font-size: 8px; letter-spacing: 0.14em;
+      color: rgba(240,232,216,0.18); text-transform: uppercase;
+      margin-top: 10px; animation: fadeUp 0.6s 0.5s both;
+    }
+
+    /* SCHERMATA 4 — AR */
+    #screen-ar {
+      position: fixed; inset: 0; z-index: 10;
+      display: none; background: #000;
+    }
+
+    #ar-canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      /* Blocca completamente ogni interazione touch sul canvas */
+      touch-action: none; pointer-events: none;
+    }
+
+    .ar-hud {
+      position: absolute; inset: 0; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: max(env(safe-area-inset-top),16px) 16px max(env(safe-area-inset-bottom),20px);
+    }
+
+    .ar-hud-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .ar-badge {
+      font-size: 8px; letter-spacing: 0.25em; color: rgba(201,168,76,0.8);
+      text-transform: uppercase; background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px); border: 0.5px solid rgba(201,168,76,0.2);
+      padding: 5px 10px;
+    }
+
+    .ar-exit {
+      pointer-events: all; background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(8px); border: 0.5px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.6); padding: 9px 18px;
+      font-family: 'Space Mono', monospace;
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;
+    }
+
+    .ar-locating {
+      font-size: 9px; letter-spacing: 0.2em;
+      color: var(--teal); text-transform: uppercase;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+      padding: 8px 16px; align-self: center;
+    }
+
+    /* FALLBACK */
+    #screen-fallback {
+      position: fixed; inset: 0; z-index: 10;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--void); gap: 14px; padding: 32px; text-align: center;
+    }
+
+    .fallback-title {
+      font-family: 'IM Fell English', serif; font-style: italic;
+      font-size: 26px; color: var(--gold); line-height: 1.3;
+    }
+
+    .fallback-text {
+      font-size: 9px; letter-spacing: 0.15em;
+      color: var(--muted); text-transform: uppercase; line-height: 2;
+    }
+
+    model-viewer {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      background: transparent; --poster-color: transparent;
+      display: none; z-index: 1;
+    }
+    model-viewer::part(default-ar-button) { display: none !important; }
+
+    .fallback-ar-btn {
+      background: transparent; border: 0.5px solid var(--gold);
+      color: var(--gold); padding: 16px 44px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; cursor: pointer;
+    }
+
+    /* OVERLAY TRANSIZIONE */
+    #transition-overlay {
+      position: fixed; inset: 0; z-index: 50;
+      background: var(--void); opacity: 0;
+      pointer-events: none; transition: opacity 0.45s ease;
+    }
+
+    #transition-overlay.fade-in  { opacity: 1; pointer-events: all; }
   </style>
 </head>
 <body>
 
-  <!-- Loading overlay -->
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-title">Alice</div>
-    <div class="loading-sub">AR Experience · Paese delle Meraviglie</div>
-    <div class="loading-line"><div class="loading-progress"></div></div>
-  </div>
-
-  <!-- Background -->
-  <div class="bg-scene">
+  <!-- ══ SCHERMATA 1: INTRO ══ -->
+  <div id="screen-intro">
+    <div class="intro-bg"></div>
     <div class="stars"></div>
+    <div class="intro-content">
+      <div class="intro-eyebrow">AR Experience · Immersal VPS</div>
+      <div class="intro-title">Alice</div>
+      <div class="intro-subtitle">nel Paese delle Meraviglie</div>
+      <div class="intro-divider"></div>
+      <div class="intro-instruction">
+        Prima di entrare in AR,<br>
+        la stanza verrà riconosciuta<br>
+        tramite Immersal VPS
+      </div>
+      <button class="intro-cta" id="startScanBtn">Inizia esperienza</button>
+    </div>
+    <div class="desktop-note">Apri su iPhone o Android per l'esperienza AR</div>
   </div>
 
-  <!-- Decorative ornaments -->
-  <div class="ornament ornament-tl">♦</div>
-  <div class="ornament ornament-br">♣</div>
-
-  <!-- AR Status pill -->
-  <div class="ar-status" id="arStatus">Ricerca stanza in corso…</div>
-
-  <!-- Toast -->
-  <div class="toast" id="toast"></div>
-
-  <!-- Model Viewer (3D preview, AR fallback) -->
-  <model-viewer
-    id="viewer"
-    src="assets/alice.glb"
-    alt="Alice nel Paese delle Meraviglie"
-    ar
-    ar-modes="webxr scene-viewer quick-look"
-    ar-placement="floor"
-    camera-controls
-    auto-rotate
-    auto-rotate-delay="1500"
-    rotation-per-second="6deg"
-    camera-orbit="0deg 72deg 3m"
-    min-camera-orbit="auto 0deg 1m"
-    max-camera-orbit="auto 90deg auto"
-    shadow-intensity="1"
-    shadow-softness="0.6"
-    exposure="0.85"
-    environment-image="neutral"
-    loading="eager"
-  >
-    <!-- Custom AR button (standard WebXR / Scene Viewer / Quick Look) -->
-    <button slot="ar-button" class="ar-launch-btn" id="arBtn">
-      <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-      Apri in AR
-    </button>
-  </model-viewer>
-
-  <!-- Top bar -->
-  <header class="top-bar">
-    <div class="brand">
-      <div class="brand-title">Alice</div>
-      <div class="brand-sub">Paese delle Meraviglie · AR</div>
-    </div>
-    <div class="tag">Immersal VPS</div>
-  </header>
-
-  <!-- Immersal VPS Button (only on mobile) -->
-  <button class="immersal-btn" id="immersalBtn">
-    <div class="pulse-dot"></div>
-    Localizza Stanza
-  </button>
-
-  <!-- Camera overlay for Immersal -->
-  <div class="camera-overlay" id="cameraOverlay">
-    <div style="font-family:'IM Fell English',serif;font-style:italic;color:var(--gold);font-size:18px;letter-spacing:0.05em;margin-bottom:4px;">
-      Punta verso la stanza
-    </div>
-    <div style="font-size:8px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:16px;">
-      Immersal VPS · Localizzazione visiva
-    </div>
-    <div class="camera-frame" id="cameraFrame">
-      <video id="cameraVideo" autoplay playsinline muted></video>
-      <canvas id="cameraCanvas"></canvas>
-      <div class="camera-scan-line" id="scanLine"></div>
-    </div>
-    <div class="camera-label" id="cameraLabel">Analisi in corso…</div>
-    <button class="camera-cancel" id="cameraCancel">Annulla</button>
-  </div>
-
-  <!-- Desktop note -->
-  <div class="desktop-note">
-    <strong>Experience Mobile</strong>
-    Scansiona con iPhone o Android<br>per aprire l'esperienza AR
-  </div>
-
-  <!-- Info toggle (mobile) -->
-  <button class="info-toggle" id="infoToggle">↑ Info</button>
-
-  <!-- Hint -->
-  <div class="hint">Ruota · Pinch</div>
-
-  <!-- Info panel -->
-  <div class="info-panel" id="infoPanel">
-    <div class="panel-drag"></div>
-    <button class="panel-close" id="panelClose">×</button>
-
-    <div class="event-title">Alice nel Paese<br>delle Meraviglie</div>
-    <div class="event-sub">Esperienza AR · Stanza Immersiva</div>
-
-    <div class="sep"></div>
-
-    <p class="event-desc">
-      Questa stanza è stata scannerizzata con tecnologia LiDAR e mappata tramite Immersal. 
-      Il personaggio appare ancorato allo spazio reale nel momento in cui la stanza viene riconosciuta.
-    </p>
-
-    <div class="chips">
-      <div class="chip gold">Immersal VPS</div>
-      <div class="chip gold">ARKit · ARCore</div>
-      <div class="chip">Nuvola di punti</div>
-      <div class="chip">Ancoraggio spaziale</div>
-      <div class="chip">GLB · WebXR</div>
+  <!-- ══ SCHERMATA 2: SCAN ══ -->
+  <div id="screen-scan">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <canvas id="scan-canvas"></canvas>
+    <div class="scan-ui">
+      <div class="scan-header">
+        <div class="scan-brand">Alice</div>
+        <div class="scan-label">Riconoscimento stanza · Immersal VPS</div>
+      </div>
+      <div class="scan-frame-wrap">
+        <div class="scan-frame">
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+      <div class="scan-bottom">
+        <div class="scan-status-box">
+          <div class="scan-status-text" id="scanStatusText">Analisi ambiente…</div>
+          <div class="scan-dots" id="scanDots">
+            <div class="scan-dot"></div><div class="scan-dot"></div>
+            <div class="scan-dot"></div><div class="scan-dot"></div>
+            <div class="scan-dot"></div><div class="scan-dot"></div>
+            <div class="scan-dot"></div><div class="scan-dot"></div>
+          </div>
+          <div class="scan-attempts" id="scanAttempts">Punta verso la stanza e muovi lentamente</div>
+        </div>
+        <button class="scan-cancel" id="scanCancel">Annulla</button>
+      </div>
     </div>
   </div>
+
+  <!-- ══ SCHERMATA 3: FOUND ══ -->
+  <div id="screen-found">
+    <div class="found-bg"></div>
+    <div class="found-content">
+      <div class="found-icon">✦</div>
+      <div class="found-title">Stanza riconosciuta</div>
+      <div class="found-sub">Alice è pronta ad apparire</div>
+      <div class="found-coords" id="foundCoords">Map ID: — · Pos: — — —</div>
+      <button class="found-enter-btn" id="enterArBtn">Entra in AR</button>
+      <div class="found-note">Il personaggio è ancorato alla posizione definita nella mappa</div>
+    </div>
+  </div>
+
+  <!-- ══ SCHERMATA 4: AR WEBXR ══ -->
+  <div id="screen-ar">
+    <canvas id="ar-canvas"></canvas>
+    <div class="ar-hud">
+      <div class="ar-hud-top">
+        <div class="ar-badge">✦ Alice AR · Immersal</div>
+        <button class="ar-exit" id="arExitBtn">✕ Esci</button>
+      </div>
+      <div class="ar-locating" id="arLocating">Caricamento modello…</div>
+    </div>
+  </div>
+
+  <!-- ══ FALLBACK ══ -->
+  <div id="screen-fallback">
+    <model-viewer id="mv-fallback"
+      src="assets/alice.glb" alt="Alice"
+      ar ar-modes="scene-viewer quick-look" ar-placement="floor"
+      camera-controls shadow-intensity="1" exposure="0.9">
+    </model-viewer>
+    <div class="fallback-title">WebXR<br>non disponibile</div>
+    <div class="fallback-text">
+      Usa Chrome su Android<br>o Safari su iOS per l'esperienza completa
+    </div>
+    <button class="fallback-ar-btn" id="fallbackArBtn">Prova comunque in AR</button>
+  </div>
+
+  <div id="transition-overlay"></div>
 
   <script>
-    // ══════════════════════════════════════════════
-    // CONFIGURAZIONI IMMERSAL
-    // ══════════════════════════════════════════════
-    const IMMERSAL_TOKEN = "4123b556a9f96f088b1469f2d9fb0fd2e85c67a8b0031637654c09d4b07cd130";
-    const MAP_ID = 146427;
-    const IMMERSAL_API = "https://api.immersal.com";
+    'use strict';
 
-    // Offset del modello rispetto all'origine della mappa Immersal
-    // Personalizza questi valori in base a dove hai deciso di posizionare Alice nella stanza
-    const MODEL_OFFSET = {
-      px: 0.0,   // offset X in metri
-      py: 0.0,   // offset Y (altezza)
-      pz: 0.0    // offset Z in metri
+    /* ═══════════════════════════════════════════════
+       CONFIGURAZIONE — modifica questi valori
+    ═══════════════════════════════════════════════ */
+    const CFG = {
+      IMMERSAL_TOKEN : "4123b556a9f96f088b1469f2d9fb0fd2e85c67a8b0031637654c09d4b07cd130",
+      MAP_ID         : 146427,
+      IMMERSAL_API   : "https://api.immersal.com",
+      MAX_ATTEMPTS   : 12,
+      INTERVAL_MS    : 2500,
+
+      MODEL_URL      : "assets/alice.glb",
+
+      // Offset del GLB in metri rispetto all'origine della mappa Immersal
+      // Questi sono i valori che hai calibrato quando hai posizionato Alice nella nuvola di punti
+      MODEL_OFFSET_X : 0.0,
+      MODEL_OFFSET_Y : 0.0,
+      MODEL_OFFSET_Z : 0.0,
+
+      MODEL_SCALE      : 1.0,
+      MODEL_ROTATION_Y : 0.0   // gradi
     };
 
-    // ══════════════════════════════════════════════
-    // STATE
-    // ══════════════════════════════════════════════
-    let localizationResult = null;
-    let cameraStream = null;
-    let localizationInterval = null;
-    let isLocalizing = false;
+    /* ═══════════════════════════════════════════════
+       STATO GLOBALE
+    ═══════════════════════════════════════════════ */
+    let immersalPose   = null;
+    let cameraStream   = null;
+    let locInterval    = null;
+    let attemptCount   = 0;
+    let arSession      = null;
+    let threeRenderer  = null;
+    let threeScene     = null;
+    let threeCamera    = null;
+    let refSpace       = null;
 
-    // ══════════════════════════════════════════════
-    // DOM refs
-    // ══════════════════════════════════════════════
-    const overlay      = document.getElementById('loadingOverlay');
-    const viewer       = document.getElementById('viewer');
-    const arStatus     = document.getElementById('arStatus');
-    const arBtn        = document.getElementById('arBtn');
-    const immersalBtn  = document.getElementById('immersalBtn');
-    const cameraOverlay = document.getElementById('cameraOverlay');
-    const cameraVideo  = document.getElementById('cameraVideo');
-    const cameraCanvas = document.getElementById('cameraCanvas');
-    const cameraLabel  = document.getElementById('cameraLabel');
-    const cameraCancel = document.getElementById('cameraCancel');
-    const infoToggle   = document.getElementById('infoToggle');
-    const infoPanel    = document.getElementById('infoPanel');
-    const panelClose   = document.getElementById('panelClose');
-    const toast        = document.getElementById('toast');
+    /* ═══════════════════════════════════════════════
+       NAVIGAZIONE TRA SCHERMATE
+    ═══════════════════════════════════════════════ */
+    const S = {
+      intro    : document.getElementById('screen-intro'),
+      scan     : document.getElementById('screen-scan'),
+      found    : document.getElementById('screen-found'),
+      ar       : document.getElementById('screen-ar'),
+      fallback : document.getElementById('screen-fallback')
+    };
+    const overlay = document.getElementById('transition-overlay');
 
-    // ══════════════════════════════════════════════
-    // LOADING
-    // ══════════════════════════════════════════════
-    function hideLoader() {
-      overlay.classList.add('fade-out');
+    function show(name) {
+      overlay.classList.add('fade-in');
       setTimeout(() => {
-        overlay.style.display = 'none';
-        // Show info toggle on mobile
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (isMobile) infoToggle.style.display = 'block';
-      }, 800);
-    }
-
-    viewer.addEventListener('load', () => setTimeout(hideLoader, 500));
-    viewer.addEventListener('error', hideLoader);
-    setTimeout(() => { if (!overlay.classList.contains('fade-out')) hideLoader(); }, 6000);
-
-    // ══════════════════════════════════════════════
-    // FLOATING PARTICLES
-    // ══════════════════════════════════════════════
-    function createParticle() {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      const size = Math.random() * 4 + 1;
-      const colors = ['rgba(201,168,76,0.6)', 'rgba(76,201,176,0.4)', 'rgba(201,76,122,0.3)', 'rgba(240,232,216,0.3)'];
-      p.style.cssText = `
-        width:${size}px; height:${size}px;
-        left:${Math.random()*100}%;
-        bottom:-10px;
-        background:${colors[Math.floor(Math.random()*colors.length)]};
-        animation-duration:${6+Math.random()*10}s;
-        animation-delay:${Math.random()*8}s;
-      `;
-      document.querySelector('.bg-scene').appendChild(p);
-      setTimeout(() => p.remove(), 20000);
-    }
-    setInterval(createParticle, 1200);
-
-    // ══════════════════════════════════════════════
-    // TOAST
-    // ══════════════════════════════════════════════
-    function showToast(msg, type = '', duration = 3000) {
-      toast.textContent = msg;
-      toast.className = 'toast show' + (type ? ' ' + type : '');
-      clearTimeout(toast._timer);
-      toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
-    }
-
-    // ══════════════════════════════════════════════
-    // INFO PANEL
-    // ══════════════════════════════════════════════
-    let panelOpen = false;
-    function openPanel() {
-      panelOpen = true;
-      infoPanel.classList.add('open');
-      infoToggle.textContent = '↓ Chiudi';
-    }
-    function closePanel() {
-      panelOpen = false;
-      infoPanel.classList.remove('open');
-      infoToggle.textContent = '↑ Info';
-    }
-    infoToggle.addEventListener('click', () => panelOpen ? closePanel() : openPanel());
-    panelClose.addEventListener('click', closePanel);
-
-    let touchStartY = 0;
-    infoPanel.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-    infoPanel.addEventListener('touchend', e => {
-      if (e.changedTouches[0].clientY - touchStartY > 60) closePanel();
-    }, { passive: true });
-
-    // ══════════════════════════════════════════════
-    // IMMERSAL VPS — LOCALIZZAZIONE VISIVA
-    // ══════════════════════════════════════════════
-
-    /**
-     * Apre la camera e avvia la localizzazione automatica
-     * tramite REST API di Immersal (/localizeb64)
-     */
-    immersalBtn.addEventListener('click', startImmersalLocalization);
-
-    async function startImmersalLocalization() {
-      if (isLocalizing) return;
-      isLocalizing = true;
-
-      cameraOverlay.classList.add('visible');
-      arStatus.classList.add('visible');
-      arStatus.className = 'ar-status visible';
-      arStatus.textContent = 'Apertura camera…';
-      cameraLabel.textContent = 'Inizializzazione camera…';
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
+        Object.values(S).forEach(s => s.style.display = 'none');
+        S[name].style.display = (name === 'scan') ? 'block' : 'flex';
+        // dissolvenza
+        requestAnimationFrame(() => {
+          overlay.style.transition = 'opacity 0.45s ease';
+          overlay.classList.remove('fade-in');
         });
+      }, 440);
+    }
 
-        cameraStream = stream;
-        cameraVideo.srcObject = stream;
-        await new Promise(res => cameraVideo.onloadedmetadata = res);
-        cameraVideo.play();
+    // Inizia con intro
+    Object.values(S).forEach(s => s.style.display = 'none');
+    S.intro.style.display = 'flex';
 
-        arStatus.textContent = 'Localizzazione in corso…';
-        cameraLabel.textContent = 'Analisi dell\'ambiente…';
+    /* ═══════════════════════════════════════════════
+       SCHERMATA 1 → avvia scansione
+    ═══════════════════════════════════════════════ */
+    document.getElementById('startScanBtn').addEventListener('click', () => {
+      if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return;
+      show('scan');
+      setTimeout(startCamera, 480);
+    });
 
-        // Tenta la localizzazione ogni 2.5 secondi
-        let attempts = 0;
-        const maxAttempts = 10;
+    /* ═══════════════════════════════════════════════
+       CAMERA + LOCALIZZAZIONE IMMERSAL
+    ═══════════════════════════════════════════════ */
+    const $video    = document.getElementById('scan-video');
+    const $canvas   = document.getElementById('scan-canvas');
+    const $status   = document.getElementById('scanStatusText');
+    const $dots     = document.getElementById('scanDots');
+    const $attempts = document.getElementById('scanAttempts');
 
-        localizationInterval = setInterval(async () => {
-          attempts++;
-          cameraLabel.textContent = `Tentativo ${attempts}/${maxAttempts} — punta verso la stanza`;
+    function dotAt(i) {
+      return $dots.children[i % $dots.children.length];
+    }
 
-          try {
-            const result = await localizeWithImmersal();
+    function setDot(i, cls) {
+      dotAt(i).className = 'scan-dot ' + cls;
+    }
 
-            if (result && result.success) {
-              // ✅ STANZA TROVATA
-              clearInterval(localizationInterval);
-              localizationResult = result;
-              onLocalizationSuccess(result);
-            } else if (attempts >= maxAttempts) {
-              // ❌ Troppi tentativi falliti
-              clearInterval(localizationInterval);
-              onLocalizationFail();
-            }
-          } catch (err) {
-            console.error('Localization error:', err);
-            if (attempts >= maxAttempts) {
-              clearInterval(localizationInterval);
-              onLocalizationFail();
-            }
-          }
-        }, 2500);
-
+    async function startCamera() {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
+        $video.srcObject = cameraStream;
+        await $video.play();
+        $status.textContent = 'Punta verso la stanza…';
+        runLocalization();
       } catch (err) {
-        console.error('Camera error:', err);
-        arStatus.className = 'ar-status visible error';
-        arStatus.textContent = 'Camera non disponibile';
-        cameraLabel.textContent = 'Errore accesso camera';
-        showToast('Accesso camera negato', 'fail');
-        stopCamera();
-        isLocalizing = false;
+        $status.textContent = 'Camera non accessibile';
+        $status.classList.add('fail');
+        $attempts.textContent = err.message;
       }
     }
 
-    /**
-     * Cattura un frame dalla camera, lo converte in base64
-     * e chiama l'API Immersal /localizeb64
-     */
-    async function localizeWithImmersal() {
-      const video = cameraVideo;
-      const canvas = cameraCanvas;
-      const w = video.videoWidth;
-      const h = video.videoHeight;
-      canvas.width = w;
-      canvas.height = h;
+    function runLocalization() {
+      attemptCount = 0;
+      locInterval = setInterval(async () => {
+        if (attemptCount >= CFG.MAX_ATTEMPTS) {
+          clearInterval(locInterval);
+          return onFail();
+        }
+        setDot(attemptCount, 'active');
+        $attempts.textContent = `Tentativo ${attemptCount + 1}/${CFG.MAX_ATTEMPTS} — muovi lentamente`;
+        try {
+          const r = await callImmersal();
+          if (r?.success) {
+            clearInterval(locInterval);
+            setDot(attemptCount, 'success');
+            onSuccess(r);
+          } else {
+            setDot(attemptCount, 'fail');
+            $status.textContent = 'Non riconosciuta — continua…';
+          }
+        } catch (e) {
+          setDot(attemptCount, 'fail');
+          console.warn(e);
+        }
+        attemptCount++;
+      }, CFG.INTERVAL_MS);
+    }
 
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, w, h);
+    async function callImmersal() {
+      const w = $video.videoWidth, h = $video.videoHeight;
+      if (!w) return null;
+      $canvas.width = w; $canvas.height = h;
+      $canvas.getContext('2d').drawImage($video, 0, 0, w, h);
 
-      // Converti in PNG base64 (rimuovi il prefisso data URI)
-      const dataUrl = canvas.toDataURL('image/png');
-      const b64 = dataUrl.replace('data:image/png;base64,', '');
+      const b64 = $canvas.toDataURL('image/jpeg', 0.9).replace(/^data:image\/jpeg;base64,/, '');
+      const fov = 60 * Math.PI / 180;
+      const fx  = (w / 2) / Math.tan(fov / 2);
 
-      // Stima camera intrinsics (approssimazione per mobile standard)
-      // Per risultati migliori usa i valori reali del dispositivo
-      const fovDeg = 60;
-      const fovRad = fovDeg * Math.PI / 180;
-      const fx = (w / 2) / Math.tan(fovRad / 2);
-      const fy = fx;
-      const ox = w / 2;
-      const oy = h / 2;
-
-      const payload = {
-        token: IMMERSAL_TOKEN,
-        fx: fx,
-        fy: fy,
-        ox: ox,
-        oy: oy,
-        b64: b64,
-        mapIds: [{ id: MAP_ID }]
-      };
-
-      const response = await fetch(`${IMMERSAL_API}/localizeb64`, {
+      const res = await fetch(`${CFG.IMMERSAL_API}/localizeb64`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          token: CFG.IMMERSAL_TOKEN,
+          fx, fy: fx, ox: w / 2, oy: h / 2, b64,
+          mapIds: [{ id: CFG.MAP_ID }]
+        })
       });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
-    }
-
-    function onLocalizationSuccess(result) {
-      console.log('Immersal localized!', result);
-
-      arStatus.className = 'ar-status visible localized';
-      arStatus.textContent = '✦ Stanza riconosciuta';
-      cameraLabel.textContent = 'Stanza riconosciuta! Apri AR…';
-
-      showToast('Stanza riconosciuta — Alice è posizionata', 'success', 4000);
-
-      // Chiudi la camera dopo 1 secondo
-      setTimeout(() => {
-        stopCamera();
-        cameraOverlay.classList.remove('visible');
-        isLocalizing = false;
-
-        // Aggiorna il bottone AR con info sulla posizione
-        immersalBtn.innerHTML = `
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="12" r="10"/>
-          </svg>
-          Stanza Localizzata ✦
-        `;
-        immersalBtn.style.color = 'var(--gold)';
-        immersalBtn.style.borderColor = 'rgba(201,168,76,0.5)';
-
-        // Salva la posizione Immersal per l'AR (usata per ancorare il GLB)
-        // In una app nativa Unity, queste coordinate vengono passate all'ARSpace
-        storeImmersalPose(result);
-
-        // Suggerisci di aprire AR
-        setTimeout(() => showToast('Premi "Apri in AR" per visualizzare Alice', '', 5000), 1000);
-
-      }, 1000);
-    }
-
-    function onLocalizationFail() {
-      arStatus.className = 'ar-status visible error';
-      arStatus.textContent = 'Stanza non riconosciuta';
-      cameraLabel.textContent = 'Prova ad inquadrare meglio la stanza';
-
-      showToast('Stanza non trovata — riprova', 'fail');
-
-      setTimeout(() => {
-        stopCamera();
-        cameraOverlay.classList.remove('visible');
-        isLocalizing = false;
-
-        // 5 secondi di recupero, poi nascondi status
-        setTimeout(() => arStatus.classList.remove('visible'), 5000);
-      }, 2000);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
     }
 
     function stopCamera() {
-      if (localizationInterval) {
-        clearInterval(localizationInterval);
-        localizationInterval = null;
-      }
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(t => t.stop());
-        cameraStream = null;
-      }
-      cameraVideo.srcObject = null;
+      clearInterval(locInterval);
+      if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      $video.srcObject = null;
     }
 
-    cameraCancel.addEventListener('click', () => {
-      clearInterval(localizationInterval);
+    function onSuccess(r) {
+      immersalPose = r;
       stopCamera();
-      cameraOverlay.classList.remove('visible');
-      arStatus.classList.remove('visible');
-      isLocalizing = false;
-    });
+      $status.classList.add('success');
+      $status.textContent = 'Stanza riconosciuta!';
 
-    /**
-     * Salva la posa Immersal in localStorage per uso futuro
-     * (es. sincronizzazione con app Unity nativa)
-     * 
-     * Struttura della posa restituita da Immersal:
-     * { success: true, map: 146427, px, py, pz, r00..r22 }
-     * 
-     * La matrice di rotazione 3x3 (r00..r22) + posizione (px, py, pz)
-     * definisce dove si trova il device nello spazio della mappa.
-     */
-    function storeImmersalPose(result) {
-      try {
-        const pose = {
-          mapId: result.map,
-          position: { x: result.px, y: result.py, z: result.pz },
-          rotation: [
-            [result.r00, result.r01, result.r02],
-            [result.r10, result.r11, result.r12],
-            [result.r20, result.r21, result.r22]
-          ],
-          timestamp: Date.now(),
-          modelOffset: MODEL_OFFSET
-        };
-        sessionStorage.setItem('immersal_pose', JSON.stringify(pose));
-        console.log('Immersal pose saved:', pose);
-      } catch(e) { /* sessionStorage potrebbe non essere disponibile */ }
+      const px = r.px?.toFixed(2), py = r.py?.toFixed(2), pz = r.pz?.toFixed(2);
+      document.getElementById('foundCoords').innerHTML =
+        `Map ID: ${r.map}<br>Pos: ${px} · ${py} · ${pz} m`;
+
+      setTimeout(() => show('found'), 700);
     }
 
-    // ══════════════════════════════════════════════
-    // MODEL VIEWER AR events
-    // ══════════════════════════════════════════════
-    viewer.addEventListener('ar-status', e => {
-      if (e.detail.status === 'session-started') {
-        arStatus.className = 'ar-status visible localized';
-        arStatus.textContent = '✦ AR attiva';
-      }
-      if (e.detail.status === 'not-presenting') {
-        setTimeout(() => arStatus.classList.remove('visible'), 2000);
+    function onFail() {
+      stopCamera();
+      $status.classList.add('fail');
+      $status.textContent = 'Stanza non riconosciuta';
+      $attempts.textContent = 'Prova da un\'altra angolazione';
+      setTimeout(() => { resetScan(); show('intro'); }, 3000);
+    }
+
+    function resetScan() {
+      attemptCount = 0;
+      $status.textContent = 'Analisi ambiente…';
+      $status.className = 'scan-status-text';
+      $attempts.textContent = 'Punta verso la stanza e muovi lentamente';
+      Array.from($dots.children).forEach(d => d.className = 'scan-dot');
+    }
+
+    document.getElementById('scanCancel').addEventListener('click', () => {
+      stopCamera(); resetScan(); show('intro');
+    });
+
+    /* ═══════════════════════════════════════════════
+       SCHERMATA 3 → avvia AR
+    ═══════════════════════════════════════════════ */
+    document.getElementById('enterArBtn').addEventListener('click', async () => {
+      const ok = navigator.xr && await navigator.xr.isSessionSupported('immersive-ar').catch(() => false);
+      if (ok) {
+        show('ar');
+        setTimeout(startWebXR, 480);
+      } else {
+        show('fallback');
+        document.getElementById('mv-fallback').style.display = 'block';
       }
     });
 
-    // ══════════════════════════════════════════════
-    // MOBILE DETECTION & AR availability
-    // ══════════════════════════════════════════════
-    customElements.whenDefined('model-viewer').then(() => {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (!isMobile) return;
+    document.getElementById('fallbackArBtn').addEventListener('click', () => {
+      document.getElementById('mv-fallback').activateAR();
+    });
 
-      setTimeout(() => {
-        if (!viewer.canActivateAR) {
-          arBtn.style.display = 'none';
-          showToast('AR non disponibile su questo browser', 'fail');
+    /* ═══════════════════════════════════════════════
+       WEBXR + THREE.JS
+       Il GLB viene posizionato in base alla posa Immersal.
+       NESSUNA interazione touch è permessa — il modello è fisso.
+    ═══════════════════════════════════════════════ */
+    async function startWebXR() {
+      const canvas   = document.getElementById('ar-canvas');
+      const locating = document.getElementById('arLocating');
+
+      // Renderer
+      threeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      threeRenderer.setPixelRatio(window.devicePixelRatio);
+      threeRenderer.setSize(window.innerWidth, window.innerHeight);
+      threeRenderer.xr.enabled = true;
+
+      // Scena
+      threeScene  = new THREE.Scene();
+      threeCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
+
+      // Luci
+      threeScene.add(new THREE.AmbientLight(0xfff5dc, 0.7));
+      const sun = new THREE.DirectionalLight(0xfff5dc, 1.2);
+      sun.position.set(1, 3, 2);
+      threeScene.add(sun);
+
+      // Carica GLB
+      const loader = new THREE.GLTFLoader();
+      loader.load(CFG.MODEL_URL, (gltf) => {
+        const model = gltf.scene;
+
+        // Scala fissa — non modificabile
+        model.scale.setScalar(CFG.MODEL_SCALE);
+
+        // Rotazione fissa attorno all'asse Y
+        model.rotation.y = THREE.MathUtils.degToRad(CFG.MODEL_ROTATION_Y);
+
+        if (immersalPose) {
+          /*
+           * Immersal restituisce la posa del DEVICE rispetto alla mappa.
+           * Per piazzare il modello al punto di ancoraggio (origine mappa + offset):
+           *
+           * 1. Costruiamo la matrice di trasformazione mappa→device (inversa della posa device)
+           * 2. Applichiamo l'offset di ancoraggio definito in CFG
+           *
+           * La matrice Immersal (colonna maggiore):
+           *   r00 r01 r02 px
+           *   r10 r11 r12 py
+           *   r20 r21 r22 pz
+           *   0   0   0   1
+           *
+           * Questa posiziona l'origine mappa nello spazio locale del device.
+           */
+          const p = immersalPose;
+
+          // Matrice device-from-map (posa che immersal restituisce)
+          const deviceFromMap = new THREE.Matrix4().set(
+            p.r00, p.r01, p.r02, p.px,
+            p.r10, p.r11, p.r12, p.py,
+            p.r20, p.r21, p.r22, p.pz,
+            0,     0,     0,     1
+          );
+
+          // Inversa: mappa-from-device (dove si trova l'origine mappa nel world)
+          const mapFromDevice = deviceFromMap.clone().invert();
+
+          // Gruppo anchor: posizione in world space
+          const anchor = new THREE.Object3D();
+          anchor.applyMatrix4(mapFromDevice);
+
+          // Offset di ancoraggio configurato
+          anchor.position.x += CFG.MODEL_OFFSET_X;
+          anchor.position.y += CFG.MODEL_OFFSET_Y;
+          anchor.position.z += CFG.MODEL_OFFSET_Z;
+
+          anchor.add(model);
+          threeScene.add(anchor);
+
+        } else {
+          // Fallback senza posa: piazza a 2m davanti
+          model.position.set(CFG.MODEL_OFFSET_X, CFG.MODEL_OFFSET_Y, -2 + CFG.MODEL_OFFSET_Z);
+          threeScene.add(model);
         }
-      }, 2500);
+
+        locating.style.display = 'none';
+      }, undefined, (err) => {
+        console.error('GLB error:', err);
+        locating.textContent = 'Errore caricamento modello';
+      });
+
+      // Sessione WebXR
+      try {
+        arSession = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures : ['local'],
+          optionalFeatures : ['dom-overlay', 'light-estimation'],
+          domOverlay       : { root: document.getElementById('screen-ar') }
+        });
+
+        threeRenderer.xr.setSession(arSession);
+        refSpace = await arSession.requestReferenceSpace('local');
+
+        // ════════════════════════════════════
+        // BLOCCA COMPLETAMENTE LE INTERAZIONI
+        // L'utente non può spostare, scalare o
+        // ruotare il modello in nessun modo.
+        // ════════════════════════════════════
+        const blockAll = e => e.preventDefault();
+        canvas.addEventListener('touchstart',  blockAll, { passive: false, capture: true });
+        canvas.addEventListener('touchmove',   blockAll, { passive: false, capture: true });
+        canvas.addEventListener('touchend',    blockAll, { passive: false, capture: true });
+        canvas.addEventListener('touchcancel', blockAll, { passive: false, capture: true });
+        canvas.addEventListener('pointerdown', blockAll, { capture: true });
+        canvas.addEventListener('pointermove', blockAll, { capture: true });
+        canvas.addEventListener('pointerup',   blockAll, { capture: true });
+        canvas.addEventListener('wheel',       blockAll, { passive: false, capture: true });
+        canvas.addEventListener('gesturestart',blockAll, { passive: false, capture: true });
+        canvas.addEventListener('gesturechange',blockAll,{ passive: false, capture: true });
+
+        // Loop rendering
+        threeRenderer.setAnimationLoop(() => {
+          threeRenderer.render(threeScene, threeCamera);
+        });
+
+        arSession.addEventListener('end', () => {
+          threeRenderer.setAnimationLoop(null);
+          arSession = null;
+          show('found');
+        });
+
+      } catch (err) {
+        console.error('WebXR error:', err);
+        locating.textContent = 'Errore AR: ' + err.message;
+      }
+    }
+
+    document.getElementById('arExitBtn').addEventListener('click', () => {
+      if (arSession) arSession.end();
+      else { threeRenderer?.setAnimationLoop(null); show('found'); }
+    });
+
+    window.addEventListener('resize', () => {
+      if (!threeRenderer || !threeCamera) return;
+      threeRenderer.setSize(window.innerWidth, window.innerHeight);
+      threeCamera.aspect = window.innerWidth / window.innerHeight;
+      threeCamera.updateProjectionMatrix();
     });
   </script>
 </body>
