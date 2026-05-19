@@ -32,7 +32,7 @@ export const tapPlaceComponent = {
         receive: false,
       })
 
-      newElement.setAttribute('gltf-model', '#cactusModel')
+      newElement.setAttribute('gltf-model', '#chessModel')
       this.el.sceneEl.appendChild(newElement)
 
       newElement.addEventListener('model-loaded', () => {
