@@ -2,45 +2,10 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Alice in Wonderland AR</title>
-
-    <script async src="//apps.8thwall.com/xrweb?appKey=YOUR_APP_KEY_HERE"></script>
+    <title>Alice in Wonderland AR - Chess World</title>
 
     <script src="//cdn.8thwall.com/web/aframe/8frame-1.3.0.min.js"></script>
-
     <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
-
-    <script>
-      AFRAME.registerComponent('tap-place', {
-        init: function() {
-          const ground = this.el
-          ground.addEventListener('click', event => {
-            // Crea una nuova entità per la pedina
-            const newElement = document.createElement('a-entity')
-
-            // Trova le coordinate del punto toccato
-            const touchPoint = event.detail.intersection.point
-            newElement.setAttribute('position', touchPoint)
-
-            // Assegna il modello 3D (l'ID definito negli <a-assets>)
-            newElement.setAttribute('gltf-model', '#chessModel')
-
-            // ATTENZIONE: Modifica questi valori se la pedina è gigante o minuscola
-            newElement.setAttribute('scale', '1 1 1')
-
-            // Aggiungi ombre e permetti di trascinare/scalare l'oggetto
-            newElement.setAttribute('shadow', 'receive: false; cast: true')
-            newElement.setAttribute('class', 'cantap')
-            newElement.setAttribute('xrextras-hold-drag', '')
-            newElement.setAttribute('xrextras-two-finger-rotate', '')
-            newElement.setAttribute('xrextras-pinch-scale', '')
-
-            // Aggiungi l'oggetto alla scena
-            this.el.sceneEl.appendChild(newElement)
-          })
-        }
-      })
-    </script>
   </head>
 
   <body>
@@ -51,22 +16,22 @@
       xrextras-loading
       xrextras-runtime-error
       renderer="colorManagement: true"
-      light="defaultLightsEnabled: false">
+      shadow="type: pcfsoft">
 
       <a-assets>
         <a-asset-item id="chessModel" src="assets/1.glb"></a-asset-item>
-      </a-assets>
 
-      <a-light type="ambient" color="#d4c5f9" intensity="0.8"></a-light>
-      <a-light type="directional"
-               position="-0.5 3 1"
-               intensity="1.5"
-               cast-shadow="true"
-               shadow-camera-top="5"
-               shadow-camera-bottom="-5"
-               shadow-camera-left="-5"
-               shadow-camera-right="5">
-      </a-light>
+        <template id="chess-template">
+          <a-entity
+            gltf-model="#chessModel"
+            scale="1 1 1" 
+            shadow="cast: true; receive: false"
+            xrextras-hold-drag 
+            xrextras-two-finger-rotate 
+            xrextras-pinch-scale>
+          </a-entity>
+        </template>
+      </a-assets>
 
       <a-camera
         id="camera"
@@ -75,13 +40,27 @@
         cursor="fuse: false; rayOrigin: mouse;">
       </a-camera>
 
+      <a-light type="ambient" color="#e8dbff" intensity="0.7"></a-light>
+      
+      <a-light 
+        type="directional" 
+        position="-2 5 2" 
+        intensity="1.3" 
+        cast-shadow="true"
+        shadow-camera-top="10"
+        shadow-camera-bottom="-10"
+        shadow-camera-left="-10"
+        shadow-camera-right="10">
+      </a-light>
+
       <a-entity
         id="ground"
         class="cantap"
         geometry="primitive: box; width: 1000; height: 0.2; depth: 1000"
         material="color: #ffffff; transparent: true; opacity: 0.0"
         position="0 -0.1 0"
-        tap-place> </a-entity>
+        xrextras-spawner="template: #chess-template">
+      </a-entity>
 
     </a-scene>
   </body>
