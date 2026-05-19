@@ -2,29 +2,39 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <title>Immerso Studio - Kino AR</title>
 
-    <!-- Librerie Open Source: A-Frame e il nuovo motore 8th Wall XR -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.6.0/aframe-master.min.js"></script>
-    <script src="https://cdn.8thwall.org/web/xrextras/xrextras.js"></script>
-    <script src="https://cdn.8thwall.org/web/aframe/8thwall-aframe.js"></script>
+    <!-- Versione stabile di A-Frame compatibile con il motore WebXR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe-master.min.js"></script>
+    
+    <!-- Librerie di 8th Wall caricate in locale dalla tua repository (Passo precedente) -->
+    <script src="./xrextras.js"></script>
+    <script src="./8thwall-aframe.js"></script>
 
-    <!-- Includiamo i componenti javascript del tuo progetto -->
+    <!-- Script opzionale per le logiche del tuo progetto (es. interazioni) -->
     <script src="./src/components.js"></script>
   </head>
 
   <body>
-    <!-- Setup della scena AR secondo gli standard 8th Wall open-source -->
+    <!-- 
+      Configurazione della scena:
+      - xrweb: Attiva la realtà aumentata di 8th Wall
+      - renderer: Gestisce le luci moderne senza generare i warning sulla console (useLegacyLights)
+    -->
     <a-scene
       xrweb
       xrextras-gesture-detector
       xrextras-loading
-      xrextras-runtime-error>
+      xrextras-runtime-error
+      renderer="colorManagement: true;">
 
+      <!-- Gestione degli asset (Modelli 3D, immagini, suoni) -->
       <a-assets>
-        <!-- Qui dentro caricherai i tuoi modelli 3D in futuro -->
+        <!-- Inserirai qui i tuoi file .glb o .gltf in futuro -->
       </a-assets>
 
+      <!-- Camera necessaria per tracciare il mondo reale e gestire i tocchi sullo schermo -->
       <a-camera
         id="camera"
         position="0 8 8"
@@ -32,23 +42,26 @@
         cursor="fuse: false; rayOrigin: mouse;">
       </a-camera>
 
+      <!-- Sistema di illuminazione ottimizzato per l'ambiente AR -->
       <a-entity
         light="type: directional; castShadow: true; intensity: 0.8;"
         position="1 4 3">
       </a-entity>
-
       <a-light type="ambient" intensity="0.7"></a-light>
 
-      <!-- Il terreno interattivo che intercetta il tocco per posizionare gli oggetti -->
+      <!-- 
+        Il terreno virtuale agganciato alla superficie reale.
+        Permette di muovere (one-finger-rotate) e scalare (two-finger-scale) gli oggetti posizionati.
+      -->
       <a-entity
-        xrextras-named-named-surface
+        xrextras-named-surface
         xrextras-one-finger-rotate
         xrextras-two-finger-scale>
         
-        <!-- Un cubo di test per verificare che l'AR funzioni senza l'errore AFRAME -->
+        <!-- Cubo di test per verificare visivamente che l'AR funzioni -->
         <a-box 
           position="0 0.5 0" 
-          material="color: #00FFCC;" 
+          material="color: #00FFCC; roughness: 0.4; metalness: 0.2;" 
           shadow>
         </a-box>
       </a-entity>
