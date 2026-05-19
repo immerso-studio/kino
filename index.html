@@ -5,21 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Alice nel Paese delle Meraviglie – AR Chess Pieces</title>
   
-  <!-- 8th Wall (SOSTITUISCI XXXXXXXX CON LA TUA APP KEY) -->
-  <script src="https://cdn.8thwall.com/web/xrextras/xrextras.js"></script>
-  <script src="https://apps.8thwall.com/xrweb?appKey=XXXXXX"></script>
+  <!-- 8th Wall (SOSTITUISCI XXXXXXXX CON LA TUA APP KEY VALIDA) -->
+  <script async src="//apps.8thwall.com/xrweb?appKey=XXXXXXXX"></script>
   
   <!-- A-Frame + estensioni 8th Wall -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.8thwall.com/web/aframe/extras/8thwall-xr.js"></script>
-  
+
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: 'Segoe UI', 'Avenir', 'Helvetica', 'Cursive', sans-serif;
-    }
-    /* Messaggio di caricamento personalizzato stile Alice */
+    body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'Avenir', 'Cursive', sans-serif; }
     .a-loader-title {
       font-size: 18px;
       color: #ffe6cc;
@@ -29,149 +23,70 @@
       border-radius: 40px;
       letter-spacing: 1px;
     }
-    /* Nasconde scroll su mobile */
-    ::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body>
-  <a-scene 
-    background="color: #0a1a2a" 
-    xrextras-attach-shadow 
+  <a-scene
+    background="color: #0a1a2a"
+    xrextras-attach-shadow
     xrextras-gesture-detector
     xrextras-almost-there
     xrextras-loading-icon
-    renderer="antialias: true; alpha: false"
+    renderer="antialias: true"
     shadow="type: pcfsoft"
-    light-estimation="true">
-    
-    <!-- Telecamera con tracking 8th Wall -->
-    <a-camera id="camera" position="0 1.6 0" wasd-controls-enabled="false">
-      <a-cursor material="color: #ffaa88; shader: flat; opacity: 0.8" 
-                geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-                animation__click="property: scale; from: 1 1 1; to: 0.8 0.8 0.8; dur: 150; startEvents: click">
-      </a-cursor>
-    </a-camera>
-    
-    <!-- Illuminazione per rendere i modelli GLB vividi -->
+  >
+    <!-- Telecamera con tracking AR -->
+    <a-camera id="camera" position="0 1.6 0" wasd-controls-enabled="false"></a-camera>
+
+    <!-- Illuminazione per i modelli 3D -->
     <a-light type="ambient" color="#445566" intensity="0.6"></a-light>
     <a-light type="directional" color="#ffffff" intensity="1.2" position="2 5 3" shadow-map-size="1024"></a-light>
     <a-light type="directional" color="#ccaa88" intensity="0.5" position="-2 3 1"></a-light>
-    
-    <!-- Elementi decorativi tema "Alice nel Paese delle Meraviglie" -->
-    <!-- Fungo rosa gigante -->
-    <a-entity geometry="primitive: sphere; radius: 0.35" material="color: #ee88cc; roughness: 0.4"
-              position="-2.5 0.2 -3.2" shadow="receive: true"></a-entity>
-    <a-entity geometry="primitive: cylinder; radius: 0.12; height: 0.6" material="color: #ddccaa"
-              position="-2.5 0 -3.2" shadow="receive: true"></a-entity>
-    
-    <!-- Fiocco luminoso (polvere di fata) -->
-    <a-entity geometry="primitive: sphere; radius: 0.08" material="color: #ffdd99; emissive: #ffaa44"
-              position="1.2 0.9 -2.1" animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; dur: 800; loop: true"></a-entity>
-    
-    <!-- Cartello con citazione "Mangiami" -->
-    <a-text value="♦ Mangiami ♦" color="#ffdd99" align="center" width="1.5" position="-1.0 0.7 -2.8"
-            material="side: double" scale="0.8 0.8 0.8" opacity="0.9"></a-text>
-    
-    <!-- Orologio del Bianconiglio (rotante) -->
-    <a-entity geometry="primitive: cylinder; radius: 0.2; height: 0.05" material="color: #ccaa77; metalness: 0.7"
-              position="1.8 0.6 -2.5" animation="property: rotation.y; from: 0; to: 360; dur: 12000; loop: true">
-      <a-entity geometry="primitive: cylinder; radius: 0.03; height: 0.2" material="color: #333" position="0 0.12 0"></a-entity>
-    </a-entity>
-    
-    <!-- Piano invisibile per ricevere tocchi e generare pedine -->
-    <a-plane id="touch-plane" position="0 0 -2" rotation="-90 0 0" width="8" height="8" 
-             material="visible: false; transparent: true; opacity: 0" 
-             xrextras-hit-test="target: #camera">
-    </a-plane>
-    
+
+    <!-- Piano invisibile per ricevere i tocchi e l'hit testing (ancoraggio al pavimento) -->
+    <a-plane
+      id="hitplane"
+      position="0 0 -2"
+      rotation="-90 0 0"
+      width="10" height="10"
+      material="visible: false"
+      xrextras-hit-test="target: #camera"
+    ></a-plane>
+
+    <!-- Componente personalizzato per spawnare le pedine al click -->
+    <a-entity id="world-effects" world-effects></a-entity>
   </a-scene>
-  
+
   <script>
-    // ========================
-    // World Effects: spawn delle pedine degli scacchi (tema Alice)
-    // ========================
+    // Componente world-effects – esattamente come nell'esempio originale, ma con il modello delle pedine
     AFRAME.registerComponent('world-effects', {
       init: function() {
-        this.spawnChessPiece = this.spawnChessPiece.bind(this);
-        this.el.sceneEl.addEventListener('click', this.spawnChessPiece);
+        this.spawnModel = this.spawnModel.bind(this);
+        this.el.sceneEl.addEventListener('click', this.spawnModel);
       },
-      
-      spawnChessPiece: function(event) {
-        const scene = this.el.sceneEl;
-        const camera = scene.querySelector('#camera');
-        if (!camera) return;
-        
-        // Determina posizione del tocco (hit-test plane)
-        let pos = { x: 0, y: 0, z: -2 };
-        const intersection = event.detail && event.detail.intersection;
-        if (intersection && intersection.point) {
-          pos = intersection.point;
-        } else {
-          // Posizione di default di fronte alla camera
-          const direction = camera.getAttribute('rotation');
-          const angle = direction.y * Math.PI / 180;
-          const distance = 1.4;
-          pos.x = Math.sin(angle) * distance;
-          pos.z = Math.cos(angle) * distance;
-          pos.y = 0;
-        }
-        
-        // Crea l'entità della pedina (modello GLB)
+
+      spawnModel: function(event) {
+        // Ottieni il punto di intersezione dal piano di hit test
+        const intersection = event.detail.intersection;
+        if (!intersection) return;
+
+        // Crea l'entità della pedina
         const piece = document.createElement('a-entity');
         piece.setAttribute('gltf-model', 'assets/1.glb');
-        piece.setAttribute('position', `${pos.x} ${pos.y + 0.15} ${pos.z}`);
-        piece.setAttribute('scale', '0.45 0.45 0.45');
+        piece.setAttribute('position', intersection.point);
         piece.setAttribute('shadow', 'receive: true; cast: true');
         
-        // Animazione di apparizione (elastica)
-        piece.setAttribute('animation__appear', 'property: scale; from: 0 0 0; to: 0.45 0.45 0.45; dur: 350; easing: easeOutElastic');
-        
-        // Rotazione casuale per varietà
+        // Scala e rotazione casuale per varietà
+        piece.setAttribute('scale', '0.45 0.45 0.45');
         const randomYaw = Math.random() * 360;
         piece.setAttribute('rotation', `0 ${randomYaw} 0`);
         
-        // Aggiunge un effetto "fumetto" al tocco (piccolo testo fluttuante)
-        const label = document.createElement('a-text');
-        label.setAttribute('value', '♟️ una pedina! ♟️');
-        label.setAttribute('color', '#ffccaa');
-        label.setAttribute('align', 'center');
-        label.setAttribute('scale', '0.4 0.4 0.4');
-        label.setAttribute('position', `0 0.6 0`);
-        label.setAttribute('animation__float', 'property: position.y; from: 0.6; to: 1.0; dur: 800; easing: easeOutQuad');
-        label.setAttribute('animation__fade', 'property: material.opacity; from: 1; to: 0; dur: 800; easing: linear');
-        piece.appendChild(label);
+        // Animazione di apparizione (simile all'esempio)
+        piece.setAttribute('animation__appear', 'property: scale; from: 0 0 0; to: 0.45 0.45 0.45; dur: 300; easing: easeOutElastic');
         
-        // Rimuovi il testo dopo 0.8 secondi
-        setTimeout(() => {
-          if (label.parentNode) label.parentNode.removeChild(label);
-        }, 800);
-        
-        scene.appendChild(piece);
-        
-        // Auto-rimozione dopo 25 secondi per non sovraccaricare la scena
-        setTimeout(() => {
-          if (piece.parentNode) {
-            piece.setAttribute('animation__fadeout', 'property: scale; to: 0 0 0; dur: 200; easing: easeInQuad');
-            setTimeout(() => {
-              if (piece.parentNode) piece.parentNode.removeChild(piece);
-            }, 250);
-          }
-        }, 25000);
-        
-        // Opzionale: vibrazione leggera su mobile (se supportata)
-        if (navigator.vibrate) navigator.vibrate(50);
+        // Aggiungi alla scena
+        this.el.sceneEl.appendChild(piece);
       }
-    });
-    
-    // Attiva il componente sulla scena non appena è pronta
-    window.addEventListener('load', () => {
-      const scene = document.querySelector('a-scene');
-      if (scene && !scene.hasAttribute('world-effects')) {
-        scene.setAttribute('world-effects', '');
-      }
-      
-      // Piccolo messaggio in console per il tema
-      console.log('🐇 Benvenuto nel Paese delle Meraviglie! Tocca lo schermo per far apparire pedine degli scacchi.');
     });
   </script>
 </body>
