@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Alice AR - Immersal VPS</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/webxr/ARButton.js"></script>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <h1>Alice attraverso lo specchio</h1>
+        <p>Inquadra l'ambiente circostante per posizionare la scultura.</p>
+        <button id="start-btn">AVVIA ESPERIENZA</button>
+    </div>
+
+    <div id="status-indicator">In attesa di attivazione...</div>
+
+    <video id="camera-feed" autoplay playsinline></video>
+
+    <canvas id="ar-canvas"></canvas>
+
+    <canvas id="hidden-capture-canvas" style="display: none;"></canvas>
+
+    <script src="app.js"></script>
+</body>
+</html>
