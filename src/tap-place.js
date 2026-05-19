@@ -2,17 +2,17 @@
 
 export const tapPlaceComponent = {
   schema: {
-    min: {default: 6},
-    max: {default: 10},
+    min: { default: 6 },
+    max: { default: 10 },
   },
   init() {
     const ground = document.getElementById('ground')
     this.prompt = document.getElementById('promptText')
-    
+
     ground.addEventListener('click', (event) => {
       // Dismiss the prompt text.
       this.prompt.style.display = 'none'
-      
+
       // Create new entity for the new object
       const newElement = document.createElement('a-entity')
 
