@@ -33,3 +33,28 @@ const observer = new MutationObserver(() => {
   }
 })
 observer.observe(document.body, {childList: true, subtree: true})
+
+// Show landing page after all permissions are granted and AR is ready
+const showLandingPage = () => {
+  const landing = document.getElementById('landing-page-overlay')
+  if (landing) {
+    landing.classList.add('visible')
+  }
+}
+
+window.addEventListener('realityready', showLandingPage)
+window.addEventListener('xr:realityready', showLandingPage)
+
+// Handle "Inizia" button click to dismiss the landing page
+window.addEventListener('DOMContentLoaded', () => {
+  const startButton = document.getElementById('landing-start-btn')
+  if (startButton) {
+    startButton.addEventListener('click', () => {
+      const landing = document.getElementById('landing-page-overlay')
+      if (landing) {
+        landing.classList.remove('visible')
+      }
+    })
+  }
+})
+

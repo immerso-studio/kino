@@ -20,12 +20,28 @@
   <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" crossorigin="anonymous" async="true" data-preload-chunks="slam"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 <script src="bundle.js"></script>
 <!-- Copyright (c) 2022 8th Wall, Inc. -->
 <!-- body.html is optional; elements will be added to your html body after app.js is loaded. -->
+
+<!-- Landing Page Overlay -->
+<div id="landing-page-overlay">
+  <div class="landing-background"></div>
+  <div class="landing-content">
+    <h1 class="landing-title">
+      <span>THE</span>
+      <span>LIVING</span>
+      <span>CHESSBOARD</span>
+    </h1>
+    <button id="landing-start-btn" class="landing-btn">Inizia &raquo;</button>
+  </div>
+</div>
 
 <div class="over">
   <span id="promptText">Tap To Place Model</span>

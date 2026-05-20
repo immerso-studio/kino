@@ -20,3 +20,144 @@
   left: 50%;
   transform: translate(-50%, 0);
 }
+
+/* Landing Page Overlay */
+#landing-page-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  pointer-events: none;
+  background-color: #000033; /* deep dark blue fallback */
+  overflow: hidden;
+}
+
+#landing-page-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.landing-background {
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  /* Chessboard pattern */
+  background-color: #000077;
+  background-image: 
+    linear-gradient(45deg, #0000ff 25%, transparent 25%), 
+    linear-gradient(-45deg, #0000ff 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #0000ff 75%), 
+    linear-gradient(-45deg, transparent 75%, #0000ff 75%);
+  background-size: 25vw 25vw;
+  background-position: 0 0, 0 12.5vw, 12.5vw -12.5vw, -12.5vw 0px;
+  /* Blurred checkerboard look like reference screenshot */
+  filter: blur(40px) contrast(1.3);
+  opacity: 0.95;
+  z-index: 1;
+}
+
+/* Gradient overlay for vignette/depth effect */
+.landing-background::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(0,0,50,0.1) 0%, rgba(0,0,20,0.9) 100%);
+  z-index: 2;
+}
+
+.landing-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.landing-title {
+  font-family: 'Cinzel', 'Georgia', serif;
+  color: #ffffff;
+  text-align: center;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 12vh;
+}
+
+.landing-title span:nth-child(1) {
+  font-size: 8.5vw;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+}
+
+.landing-title span:nth-child(2) {
+  font-size: 11vw;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  margin-top: -0.1em;
+}
+
+.landing-title span:nth-child(3) {
+  font-size: 11.5vw;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin-top: -0.1em;
+}
+
+@media (min-width: 600px) {
+  .landing-title span:nth-child(1) { font-size: 45px; }
+  .landing-title span:nth-child(2) { font-size: 58px; }
+  .landing-title span:nth-child(3) { font-size: 62px; }
+  .landing-background {
+    background-size: 120px 120px;
+    background-position: 0 0, 0 60px, 60px -60px, -60px 0px;
+  }
+}
+
+.landing-btn {
+  background-color: #ffffff;
+  color: #0000dd;
+  border: none;
+  padding: 14px 44px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  font-family: system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.landing-btn:hover {
+  transform: translateY(-2px);
+  background-color: #f5f5f5;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+}
+
+.landing-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
