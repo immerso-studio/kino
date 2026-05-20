@@ -130,3 +130,9 @@
   }
 }
 
+/* Hide the camera permission instruction banner and camera icon */
+#requestingCameraPermissions {
+  display: none !important;
+}
+
+
