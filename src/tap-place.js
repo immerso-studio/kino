@@ -8,7 +8,7 @@ export const tapPlaceComponent = {
   init() {
     const ground = document.getElementById('ground')
     this.prompt = document.getElementById('promptText')
-    this.toggle = false
+    this.modelIndex = 1
 
     ground.addEventListener('click', (event) => {
       // Dismiss the prompt text.
@@ -31,9 +31,9 @@ export const tapPlaceComponent = {
         receive: false,
       })
 
-      // Alternate models
-      const modelId = this.toggle ? '#model2' : '#model1'
-      this.toggle = !this.toggle
+      // Cycle through 12 models
+      const modelId = `#model${this.modelIndex}`
+      this.modelIndex = (this.modelIndex % 12) + 1
 
       newElement.setAttribute('gltf-model', modelId)
       this.el.sceneEl.appendChild(newElement)
