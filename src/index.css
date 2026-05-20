@@ -34,10 +34,9 @@
   align-items: center;
   box-sizing: border-box;
   padding: 8vh 20px 4vh 20px;
-  background-color: #101118;
   
   /* Image Background */
-  background-image: url('assets/sfondo.webp');
+  background-image: url('assets/sfondo.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

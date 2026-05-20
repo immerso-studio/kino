@@ -31,7 +31,15 @@ const makeTsLoader = () => ({
 const makeCssLoader = () => ({
   test: /\.css$/,
   exclude: /\/assets\//,
-  use: ['style-loader', 'css-loader'],
+  use: [
+    'style-loader',
+    {
+      loader: 'css-loader',
+      options: {
+        url: false,
+      },
+    },
+  ],
 })
 
 const makeSassLoader = () => ({
