@@ -34,27 +34,32 @@ const observer = new MutationObserver(() => {
 })
 observer.observe(document.body, {childList: true, subtree: true})
 
-// Show landing page after all permissions are granted and AR is ready
-const showLandingPage = () => {
-  const landing = document.getElementById('landing-page-overlay')
-  if (landing) {
-    landing.classList.add('visible')
+// Manage Start Screen visibility after realityready
+document.addEventListener('DOMContentLoaded', () => {
+  const scene = document.querySelector('a-scene')
+  const startScreen = document.getElementById('startScreen')
+  const startBtn = document.getElementById('startBtn')
+  const promptText = document.getElementById('promptText')
+
+  if (scene) {
+    scene.addEventListener('realityready', () => {
+      if (startScreen) {
+        startScreen.style.display = 'flex'
+      }
+    })
   }
-}
 
-window.addEventListener('realityready', showLandingPage)
-window.addEventListener('xr:realityready', showLandingPage)
-
-// Handle "Inizia" button click to dismiss the landing page
-window.addEventListener('DOMContentLoaded', () => {
-  const startButton = document.getElementById('landing-start-btn')
-  if (startButton) {
-    startButton.addEventListener('click', () => {
-      const landing = document.getElementById('landing-page-overlay')
-      if (landing) {
-        landing.classList.remove('visible')
+  if (startBtn) {
+    startBtn.addEventListener('click', () => {
+      if (startScreen) {
+        startScreen.style.opacity = '0'
+        setTimeout(() => {
+          startScreen.style.display = 'none'
+          if (promptText) {
+            promptText.style.display = 'block'
+          }
+        }, 500)
       }
     })
   }
 })
-
