@@ -34,8 +34,26 @@ const observer = new MutationObserver(() => {
 })
 observer.observe(document.body, {childList: true, subtree: true})
 
+// Function to trigger the title fade-in and float animation
+const triggerTitleAnimation = () => {
+  const title = document.querySelector('.splash-title')
+  if (title && !title.classList.contains('animate')) {
+    title.classList.add('animate')
+  }
+}
+
+// Listen for 8th Wall camera status change to trigger title animation when camera access is granted
+window.addEventListener('xr:camerastatuschange', (event) => {
+  if (event.detail.status === 'hasStream' || event.detail.status === 'hasVideo') {
+    triggerTitleAnimation()
+  }
+})
+
 // Manage splash screen state and "inizia" click when 8th Wall loading completes
 const onLoadingFinished = () => {
+  // Safe fallback if camera event didn't fire or was already active
+  triggerTitleAnimation()
+
   const spinner = document.getElementById('splashSpinner')
   const startButton = document.getElementById('startArButton')
   if (spinner) {
@@ -79,31 +97,4 @@ if (document.readyState === 'loading') {
 } else {
   initSplashHandler()
 }
-
-// Start the smooth fade-in and float animation for the splash title
-const startTitleAnimation = () => {
-  const splashTitle = document.getElementById('splashTitle')
-  if (splashTitle && !splashTitle.classList.contains('animate')) {
-    splashTitle.classList.add('animate')
-  }
-}
-
-// Add a pipeline module to detect when camera permission is granted
-const onXrLoaded = () => {
-  window.XR8.addCameraPipelineModule({
-    name: 'camera-permission-listener',
-    onCameraStatusChange: ({status}) => {
-      if (status === 'hasStream' || status === 'hasVideo') {
-        startTitleAnimation()
-      }
-    }
-  })
-}
-
-if (window.XR8) {
-  onXrLoaded()
-} else {
-  window.addEventListener('xrloaded', onXrLoaded)
-}
-
 
