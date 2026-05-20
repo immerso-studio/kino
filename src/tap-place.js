@@ -43,7 +43,7 @@ export const tapPlaceComponent = {
         newElement.setAttribute('visible', 'true')
         newElement.setAttribute('animation', {
           property: 'scale',
-          to: '4 4 4',
+          to: '1 1 1',
           easing: 'easeOutElastic',
           dur: 800,
         })
