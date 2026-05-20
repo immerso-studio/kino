@@ -34,14 +34,13 @@
   align-items: center;
   box-sizing: border-box;
   padding: 8vh 20px 4vh 20px;
-  background-color: #000063;
+  background-color: #101118;
   
-  /* Chessboard checkered pattern */
-  background-image: 
-    linear-gradient(45deg, #0000d1 25%, transparent 25%, transparent 75%, #0000d1 75%, #0000d1), 
-    linear-gradient(45deg, #0000d1 25%, #000063 25%, #000063 75%, #0000d1 75%, #0000d1);
-  background-size: 160px 160px;
-  background-position: 0 0, 80px 80px;
+  /* Image Background */
+  background-image: url('assets/sfondo.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   
   font-family: 'Cinzel', serif;
   text-align: center;
