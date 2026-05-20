@@ -1,71 +1,93 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>Immerso Studio - Kino AR</title>
 
-    <!-- Versione stabile di A-Frame compatibile con il motore WebXR -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe-master.min.js"></script>
-    
-    <!-- Librerie di 8th Wall caricate in locale dalla tua repository (Passo precedente) -->
-    <script src="./xrextras.js"></script>
-    <script src="./8thwall-aframe.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Script opzionale per le logiche del tuo progetto (es. interazioni) -->
-    <script src="./src/components.js"></script>
-  </head>
+  <title>A-Frame: Tap to Place Ground</title>
+  <meta itemprop="name" content="A-Frame: Tap to Place Ground">
+  <meta name="twitter:title" content="A-Frame: Tap to Place Ground">
+  <meta property="og:title" content="A-Frame: Tap to Place Ground">
+  <meta property="og:site_name" content="A-Frame: Tap to Place Ground">
+  <meta name="description" content="This example allows the user to grow objects by tapping or clicking the ground.">
+  <meta itemprop="description" content="This example allows the user to grow objects by tapping or clicking the ground.">
+  <meta property="og:description" content="This example allows the user to grow objects by tapping or clicking the ground.">
+  <meta name="twitter:description" content="This example allows the user to grow objects by tapping or clicking the ground.">
+  <meta property="og:image" content="https://8thwall.org/aframe-world-effects/assets/preview.gif"/>
 
-  <body>
-    <!-- 
-      Configurazione della scena:
-      - xrweb: Attiva la realtà aumentata di 8th Wall
-      - renderer: Gestisce le luci moderne senza generare i warning sulla console (useLegacyLights)
-    -->
-    <a-scene
-      xrweb
-      xrextras-gesture-detector
-      xrextras-loading
-      xrextras-runtime-error
-      renderer="colorManagement: true;">
+  <!-- Scripts point to the built files in the dist/ folder -->
+  <script crossorigin="anonymous" src="dist/external/scripts/8frame-1.5.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" crossorigin="anonymous" async="true" data-preload-chunks="slam"></script>
+</head>
 
-      <!-- Gestione degli asset (Modelli 3D, immagini, suoni) -->
-      <a-assets>
-        <!-- Inserirai qui i tuoi file .glb o .gltf in futuro -->
-      </a-assets>
+<body>
+<script src="dist/bundle.js"></script>
 
-      <!-- Camera necessaria per tracciare il mondo reale e gestire i tocchi sullo schermo -->
-      <a-camera
-        id="camera"
-        position="0 8 8"
-        raycaster="objects: .cantap"
-        cursor="fuse: false; rayOrigin: mouse;">
-      </a-camera>
+<div class="over">
+  <span id="promptText">Tap To Place Model</span>
+</div>
 
-      <!-- Sistema di illuminazione ottimizzato per l'ambiente AR -->
-      <a-entity
-        light="type: directional; castShadow: true; intensity: 0.8;"
-        position="1 4 3">
-      </a-entity>
-      <a-light type="ambient" intensity="0.7"></a-light>
+<a-scene
+  tap-place
+  landing-page
+  xrextras-loading
+  xrextras-runtime-error
+  renderer="colorManagement:true"
+  xrweb="
+    allowedDevices: any;
+    defaultEnvironmentFogIntensity: 0.5; 
+    defaultEnvironmentFloorTexture: #groundTex; 
+    defaultEnvironmentFloorColor: #FFF;
+    defaultEnvironmentSkyBottomColor: #B4C4CC; 
+    defaultEnvironmentSkyTopColor: #5ac8fa;
+    defaultEnvironmentSkyGradientStrength: 0.5;">
 
-      <!-- 
-        Il terreno virtuale agganciato alla superficie reale.
-        Permette di muovere (one-finger-rotate) e scalare (two-finger-scale) gli oggetti posizionati.
-      -->
-      <a-entity
-        xrextras-named-surface
-        xrextras-one-finger-rotate
-        xrextras-two-finger-scale>
-        
-        <!-- Cubo di test per verificare visivamente che l'AR funzioni -->
-        <a-box 
-          position="0 0.5 0" 
-          material="color: #00FFCC; roughness: 0.4; metalness: 0.2;" 
-          shadow>
-        </a-box>
-      </a-entity>
+  <a-assets>
+    <img id="groundTex" src="dist/assets/sand.jpg">
+    <a-asset-item id="model1" src="dist/assets/1.glb"></a-asset-item>
+    <a-asset-item id="model2" src="dist/assets/2.glb"></a-asset-item>
+  </a-assets>
 
-    </a-scene>
-  </body> 
-</html> 
+  <a-camera
+    id="camera"
+    position="0 8 8"
+    raycaster="objects: .cantap"
+    cursor="
+      fuse: false;
+      rayOrigin: mouse;">
+  </a-camera>
+
+  <a-entity
+    light="
+      type: directional;
+      intensity: 0.8;
+      castShadow: true;
+      shadowMapHeight:2048;
+      shadowMapWidth:2048;
+      shadowCameraTop: 40;
+      shadowCameraBottom: -40;
+      shadowCameraRight: 40;
+      shadowCameraLeft: -40;
+      target: #camera"
+    xrextras-attach="target: camera; offset: 8 15 4"
+    position="1 4.3 2.5"
+    shadow>
+  </a-entity>
+
+  <a-light type="ambient" intensity="0.5"></a-light>
+
+  <a-box
+    id="ground"
+    class="cantap"
+    scale="1000 2 1000"
+    position="0 -0.99 0"
+    material="shader: shadow; transparent: true; opacity: 0.4"
+    shadow>
+  </a-box>
+</a-scene>
+
+</body>
+</html>
