@@ -80,3 +80,30 @@ if (document.readyState === 'loading') {
   initSplashHandler()
 }
 
+// Start the smooth fade-in and float animation for the splash title
+const startTitleAnimation = () => {
+  const splashTitle = document.getElementById('splashTitle')
+  if (splashTitle && !splashTitle.classList.contains('animate')) {
+    splashTitle.classList.add('animate')
+  }
+}
+
+// Add a pipeline module to detect when camera permission is granted
+const onXrLoaded = () => {
+  window.XR8.addCameraPipelineModule({
+    name: 'camera-permission-listener',
+    onCameraStatusChange: ({status}) => {
+      if (status === 'hasStream' || status === 'hasVideo') {
+        startTitleAnimation()
+      }
+    }
+  })
+}
+
+if (window.XR8) {
+  onXrLoaded()
+} else {
+  window.addEventListener('xrloaded', onXrLoaded)
+}
+
+
