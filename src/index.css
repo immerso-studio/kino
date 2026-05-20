@@ -31,18 +31,18 @@
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  background-color: #000066;
+  box-sizing: border-box;
+  padding: 8vh 20px 4vh 20px;
+  background-color: #101118;
   
-  /* Chessboard checkered pattern */
-  background-image: 
-    linear-gradient(45deg, #0000e6 25%, transparent 25%, transparent 75%, #0000e6 75%, #0000e6), 
-    linear-gradient(45deg, #0000e6 25%, #000099 25%, #000099 75%, #0000e6 75%, #0000e6);
-  background-size: 160px 160px;
-  background-position: 0 0, 80px 80px;
+  /* Image Background */
+  background-image: url('assets/sfondo.webp');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   
-  font-family: 'Cinzel', 'Playfair Display', serif;
+  font-family: 'Cinzel', serif;
   text-align: center;
   transition: opacity 0.5s ease;
   opacity: 1;
@@ -56,7 +56,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, rgba(0, 0, 230, 0.2) 0%, rgba(0, 0, 51, 0.95) 90%);
+  background: radial-gradient(circle, rgba(0, 0, 40, 0.1) 0%, rgba(0, 0, 20, 0.85) 95%);
   pointer-events: none;
   z-index: 1;
 }
@@ -68,8 +68,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   pointer-events: none;
   z-index: 1;
 }
@@ -78,25 +78,52 @@
   position: relative;
   z-index: 2;
   color: #ffffff;
-  margin-bottom: 60px;
+  margin-top: 6vh; /* Positioned slightly higher */
   letter-spacing: 0.05em;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
   padding: 0 20px;
 }
 
 .title-part {
-  font-size: 3.5rem;
-  font-weight: 700;
-  line-height: 1.15;
+  font-size: 3.6rem;
+  font-weight: 400; /* Cinzel Regular */
+  line-height: 0.85; /* Letters almost touching */
   text-transform: uppercase;
+  opacity: 0; /* Starts hidden */
+  animation: fadeInWord 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-/* Button style matching screenshot */
+/* Delay for each word to fade in smoothly */
+.word-1 {
+  animation-delay: 0.2s;
+}
+.word-2 {
+  animation-delay: 0.7s;
+}
+.word-3 {
+  animation-delay: 1.2s;
+}
+
+@keyframes fadeInWord {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Button style centered exactly */
 .start-button {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 2;
   background-color: #ffffff;
-  color: #0000e6;
+  color: #0000a3;
   border: none;
   padding: 12px 48px;
   font-size: 1.6rem;
@@ -111,22 +138,55 @@
 }
 
 .start-button:hover {
-  transform: scale(1.05);
+  transform: translate(-50%, -50%) scale(1.05);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
   background-color: #f5f5f5;
 }
 
 .start-button:active {
-  transform: scale(0.98);
+  transform: translate(-50%, -50%) scale(0.98);
+}
+
+/* Footer layout */
+.footer-container {
+  margin-top: auto; /* Aligns at the bottom */
+  margin-bottom: 3vh;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+}
+
+.footer-text {
+  color: rgba(255, 255, 255, 0.85);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.footer-logo {
+  max-height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
 }
 
 @media (max-width: 600px) {
   .title-part {
-    font-size: 2.8rem;
+    font-size: 2.6rem;
   }
   .start-button {
     font-size: 1.4rem;
     padding: 10px 40px;
+  }
+  .footer-text {
+    font-size: 0.78rem;
+  }
+  .footer-logo {
+    max-height: 30px;
   }
 }
 
