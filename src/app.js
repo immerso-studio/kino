@@ -34,67 +34,45 @@ const observer = new MutationObserver(() => {
 })
 observer.observe(document.body, {childList: true, subtree: true})
 
-// Function to trigger the title fade-in and float animation
-const triggerTitleAnimation = () => {
-  const title = document.querySelector('.splash-title')
-  if (title && !title.classList.contains('animate')) {
-    title.classList.add('animate')
-  }
-}
+// Listen for scene loading completion to display "Inizia" button
+window.addEventListener('DOMContentLoaded', () => {
+  const scene = document.querySelector('a-scene')
+  const startBtn = document.getElementById('start-ar-btn')
+  const overlay = document.getElementById('custom-loading-overlay')
 
-// Listen for 8th Wall camera status change to trigger title animation when camera access is granted
-window.addEventListener('xr:camerastatuschange', (event) => {
-  if (event.detail.status === 'hasStream' || event.detail.status === 'hasVideo') {
-    triggerTitleAnimation()
-  }
-})
+  if (!scene || !startBtn || !overlay) return
 
-// Manage splash screen state and "inizia" click when 8th Wall loading completes
-const onLoadingFinished = () => {
-  // Safe fallback if camera event didn't fire or was already active
-  triggerTitleAnimation()
+  let sceneLoaded = false
+  let realityReady = false
 
-  const spinner = document.getElementById('splashSpinner')
-  const startButton = document.getElementById('startArButton')
-  if (spinner) {
-    spinner.style.display = 'none'
+  function checkReady() {
+    if (sceneLoaded && realityReady) {
+      startBtn.classList.add('visible')
+    }
   }
-  if (startButton) {
-    startButton.classList.add('visible')
-  }
-}
 
-// Watch for loading completion (when #loadingContainer is hidden or removed)
-const loadingObserver = new MutationObserver(() => {
-  const loadingContainer = document.getElementById('loadingContainer')
-  if (!loadingContainer || 
-      loadingContainer.classList.contains('hidden') || 
-      window.getComputedStyle(loadingContainer).display === 'none') {
-    onLoadingFinished()
-    loadingObserver.disconnect()
-  }
-})
-loadingObserver.observe(document.body, {
-  childList: true,
-  subtree: true,
-  attributes: true,
-  attributeFilter: ['class', 'style']
-})
-
-// Handle "inizia" button click to fade out the splash screen
-const initSplashHandler = () => {
-  const startButton = document.getElementById('startArButton')
-  const customSplash = document.getElementById('customSplash')
-  if (startButton && customSplash) {
-    startButton.addEventListener('click', () => {
-      customSplash.classList.add('fade-out')
+  // Check if A-Frame scene is loaded
+  if (scene.hasLoaded) {
+    sceneLoaded = true
+    checkReady()
+  } else {
+    scene.addEventListener('loaded', () => {
+      sceneLoaded = true
+      checkReady()
     })
   }
-}
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initSplashHandler)
-} else {
-  initSplashHandler()
-}
+  // Check if 8th Wall reality engine is ready
+  window.addEventListener('xr:realityready', () => {
+    realityReady = true
+    checkReady()
+  })
 
+  // Start button action
+  startBtn.addEventListener('click', () => {
+    overlay.style.opacity = '0'
+    setTimeout(() => {
+      overlay.style.display = 'none'
+    }, 500)
+  })
+})
