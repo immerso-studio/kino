@@ -33,3 +33,50 @@ const observer = new MutationObserver(() => {
   }
 })
 observer.observe(document.body, {childList: true, subtree: true})
+
+// Manage splash screen state and "inizia" click when 8th Wall loading completes
+const onLoadingFinished = () => {
+  const spinner = document.getElementById('splashSpinner')
+  const startButton = document.getElementById('startArButton')
+  if (spinner) {
+    spinner.style.display = 'none'
+  }
+  if (startButton) {
+    startButton.classList.add('visible')
+  }
+}
+
+// Watch for loading completion (when #loadingContainer is hidden or removed)
+const loadingObserver = new MutationObserver(() => {
+  const loadingContainer = document.getElementById('loadingContainer')
+  if (!loadingContainer || 
+      loadingContainer.classList.contains('hidden') || 
+      window.getComputedStyle(loadingContainer).display === 'none') {
+    onLoadingFinished()
+    loadingObserver.disconnect()
+  }
+})
+loadingObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: ['class', 'style']
+})
+
+// Handle "inizia" button click to fade out the splash screen
+const initSplashHandler = () => {
+  const startButton = document.getElementById('startArButton')
+  const customSplash = document.getElementById('customSplash')
+  if (startButton && customSplash) {
+    startButton.addEventListener('click', () => {
+      customSplash.classList.add('fade-out')
+    })
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSplashHandler)
+} else {
+  initSplashHandler()
+}
+

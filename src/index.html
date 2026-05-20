@@ -16,6 +16,11 @@
   <meta name="twitter:description" content="This example allows the user to grow cacti 🌵  by tapping or clicking the ground. Showcases raycasting, spawning objects, and importing a 3D model.">
   <meta property="og:image" content="https://8thwall.org/aframe-world-effects/assets/preview.gif"/>
 
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+
   <script crossorigin="anonymous" src="./external/scripts/8frame-1.5.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script>
@@ -23,6 +28,13 @@
 </head>
 
 <body>
+<div id="customSplash">
+  <div class="splash-content">
+    <h1 class="splash-title">The Living Chessboard</h1>
+    <div id="splashSpinner" class="splash-spinner"></div>
+    <button id="startArButton" class="start-button">inizia</button>
+  </div>
+</div>
 <script src="bundle.js"></script>
 <!-- Copyright (c) 2022 8th Wall, Inc. -->
 <!-- body.html is optional; elements will be added to your html body after app.js is loaded. -->
